@@ -178,4 +178,3 @@ cython_debug/
 /characters/
 /vector_db/
 config.yaml
-*.yaml
