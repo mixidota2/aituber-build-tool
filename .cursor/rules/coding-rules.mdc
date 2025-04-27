@@ -1,0 +1,30 @@
+---
+description: 
+globs: *.py,*.ts
+alwaysApply: false
+---
+コーディングを行うときの設計、実装のルールを示す。
+
+# 基本思想
+* 小さくはじめて段階的に拡張する
+* 過度な抽象化を避ける
+* Single Responsibility Principleを意識する
+* Open Closed Principalを意識する
+* 脳に収まるように、ひとつの関数・メソッド・ファイル・ディレクトリでやっていることを7つ以下に抑える
+
+# Python
+## 基本
+* Type Hintを必ず付ける
+* cliはtyperで実装する
+* データモデルはPydanticで実装する
+* APIはFastAPIで実装する
+## package管理
+uvを使用する。
+```bash
+# 実行時
+uv run xx.py
+# package追加
+uv add {package_name}
+# group分け
+uv add {package_name} --group {group}
+```
