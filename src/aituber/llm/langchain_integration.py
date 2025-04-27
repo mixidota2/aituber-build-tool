@@ -58,7 +58,7 @@ class LangChainService:
         api_key_str = self.config.api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key_str:
             raise LLMError("OpenAI API キーが設定されていません")
-        
+
         # SecretStrに変換
         secret_api_key = SecretStr(api_key_str)
 
@@ -86,8 +86,7 @@ class LangChainService:
 
         # 埋め込みモデル
         self.embeddings = OpenAIEmbeddings(
-            model=self.app_context.config.memory.embedding_model, 
-            api_key=secret_api_key
+            model=self.app_context.config.memory.embedding_model, api_key=secret_api_key
         )
 
     async def generate(self, messages: List[Message]) -> str:

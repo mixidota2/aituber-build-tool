@@ -105,7 +105,7 @@ class MemoryManager:
             for doc, score in docs_and_scores:
                 meta = doc.metadata
                 doc_id = doc.id
-                
+
                 # IDがない場合はスキップ
                 if doc_id is None:
                     continue
@@ -121,7 +121,7 @@ class MemoryManager:
                     char_id = meta.get("character_id")
                     if char_id is None:
                         char_id = character_id  # フィルタで指定したものを使用
-                    
+
                     # 新しくMemoryオブジェクトを作成
                     memory = Memory(
                         id=doc_id,

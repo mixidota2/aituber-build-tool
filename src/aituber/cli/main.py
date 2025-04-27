@@ -129,9 +129,13 @@ def initialize(
         # サンプルキャラクターの保存
         sample_character_path = os.path.join(characters_dir, "railly.yaml")
         with open(sample_character_path, "w", encoding="utf-8") as f:
-            yaml.dump(sample_character.model_dump(), f, allow_unicode=True, sort_keys=False)
-        
-        typer.echo(f"サンプルキャラクター「らいりぃ」を作成しました: {sample_character_path}")
+            yaml.dump(
+                sample_character.model_dump(), f, allow_unicode=True, sort_keys=False
+            )
+
+        typer.echo(
+            f"サンプルキャラクター「らいりぃ」を作成しました: {sample_character_path}"
+        )
 
 
 @app.command("chat")
