@@ -210,7 +210,7 @@ class ConversationManager:
             raise LLMError(f"ストリーミング応答生成中にエラーが発生しました: {e}")
 
     async def _build_prompt(
-        self, context: ConversationContext, character: Any, memories: List[Any] = None
+        self, context: ConversationContext, character: Any, memories: List[Any] | None = None
     ) -> List[Message]:
         """プロンプトの構築（システムプロンプト、記憶、会話履歴）"""
         # システムプロンプト
