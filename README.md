@@ -9,7 +9,8 @@
 - セッションを超えた長期的なコンテキスト保持
 - 任意のキャラクター設定の適用と切り替え機能
 - キャラクター設定の管理システム
-- LangChainを活用したLLM連携
+- OpenAI APIを活用したLLM連携
+- ストリーミング応答によるリアルタイムな対話
 
 ## インストール方法
 
@@ -65,6 +66,12 @@ persona:
   background: 経歴や背景設定
   appearance: 外見の特徴
   speech_style: 話し方の特徴
+personality_traits:
+  - name: 性格特性1
+    description: 性格特性の説明
+interests:
+  - name: 興味1
+    description: 興味の説明
 ```
 
 ファイルを `data/characters/` ディレクトリに配置してください。
@@ -85,7 +92,7 @@ aituber list-characters
 # 通常モード
 aituber chat --character railly
 
-# ストリーミングモード
+# ストリーミングモード（リアルタイムな応答）
 aituber chat --character railly --stream
 ```
 
@@ -122,7 +129,7 @@ uv run python -m aituber chat --character railly
 ```
                                 [キャラクター設定マネージャ]
                                            ↓
-[入力(テキスト/音声)] → [前処理] → [LLM対話エンジン] → [後処理] → [出力(テキスト/音声)]
+[入力(テキスト/音声)] → [前処理] → [OpenAI LLM] → [後処理] → [出力(テキスト/音声)]
                 |              ↑          ↑           ↓
                 |         [長期記憶DB] [知識ベース] [記憶保存]
                 ↓              ↑          ↑           ↓

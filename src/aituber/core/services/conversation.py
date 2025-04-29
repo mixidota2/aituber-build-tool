@@ -1,19 +1,19 @@
-"""Conversation management for AITuber framework."""
+"""Conversation management service implementation."""
 
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional, AsyncGenerator
 from datetime import datetime
 import uuid
 
-from .langchain_integration import LangChainService, Message
-from ..core.context import AppContext
-from ..core.events import EventType
-from ..core.exceptions import LLMError
+from pydantic import BaseModel, Field
 
+from ..config import AITuberConfig
+from ..exceptions import LLMError
+from .character import CharacterService
+from .memory import MemoryService
+from .llm import LLMService, Message
 
 class ConversationContext(BaseModel):
     """会話コンテキスト"""
-
     character_id: str
     user_id: str
     conversation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -22,15 +22,20 @@ class ConversationContext(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
+class ConversationService:
+    """会話管理サービス"""
 
-class ConversationManager:
-    """会話の管理"""
-
-    def __init__(self, app_context: AppContext):
-        self.app_context = app_context
-        self.langchain_service: LangChainService = self.app_context.get_service(
-            "langchain_service"
-        )
+    def __init__(
+        self,
+        config: AITuberConfig,
+        character_service: CharacterService,
+        memory_service: MemoryService,
+        llm_service: LLMService
+    ):
+        self.config = config
+        self.character_service = character_service
+        self.memory_service = memory_service
+        self.llm_service = llm_service
         self.active_conversations: Dict[str, ConversationContext] = {}
 
     async def process_message(self, conversation_id: str, user_message: str) -> str:
@@ -41,52 +46,23 @@ class ConversationManager:
             raise ValueError(f"会話が見つかりません: {conversation_id}")
 
         # キャラクター取得
-        character_manager = self.app_context.get_service("character_manager")
-        character = character_manager.load_character(context.character_id)
-
-        # イベント発行: メッセージ受信
-        self.app_context.publish_event(
-            EventType.MESSAGE_RECEIVED,
-            data={
-                "conversation_id": conversation_id,
-                "user_id": context.user_id,
-                "character_id": context.character_id,
-                "message": user_message,
-            },
-            source="conversation_manager",
-        )
+        character = self.character_service.get_character(context.character_id)
 
         # ユーザーメッセージ追加
         user_msg = Message(role="user", content=user_message)
         context.messages.append(user_msg)
 
         # 関連記憶の取得
-        memory_manager = None
-        memories = []
-        if self.app_context.has_service("memory_manager"):
-            memory_manager = self.app_context.get_service("memory_manager")
-            memories = await memory_manager.retrieve_relevant_memories(
-                character.id, user_message, limit=5
-            )
+        memories = await self.memory_service.retrieve_relevant_memories(
+            character.id, user_message, limit=5
+        )
 
         # プロンプト構築
         prompt_messages = await self._build_prompt(context, character, memories)
 
-        # イベント発行: メッセージ処理完了
-        self.app_context.publish_event(
-            EventType.MESSAGE_PROCESSED,
-            data={
-                "conversation_id": conversation_id,
-                "user_id": context.user_id,
-                "character_id": context.character_id,
-                "message": user_message,
-            },
-            source="conversation_manager",
-        )
-
         # LLM応答生成
         try:
-            response = await self.langchain_service.generate(prompt_messages)
+            response = await self.llm_service.generate(prompt_messages)
 
             # 応答を会話履歴に追加
             assistant_msg = Message(role="assistant", content=response)
@@ -95,25 +71,12 @@ class ConversationManager:
             # 更新時間の更新
             context.updated_at = datetime.now()
 
-            # イベント発行: 応答生成
-            self.app_context.publish_event(
-                EventType.RESPONSE_GENERATED,
-                data={
-                    "conversation_id": conversation_id,
-                    "user_id": context.user_id,
-                    "character_id": context.character_id,
-                    "message": response,
-                },
-                source="conversation_manager",
-            )
-
             # 新しい記憶の保存
-            if memory_manager:
-                await memory_manager.add_memory(
-                    character_id=character.id,
-                    user_id=context.user_id,
-                    text=f"User: {user_message}\nAssistant: {response}",
-                )
+            await self.memory_service.add_memory(
+                character_id=character.id,
+                user_id=context.user_id,
+                text=f"User: {user_message}\nAssistant: {response}",
+            )
 
             return response
         except Exception as e:
@@ -121,7 +84,7 @@ class ConversationManager:
 
     async def process_message_stream(
         self, conversation_id: str, user_message: str
-    ) -> Any:
+    ) -> AsyncGenerator[str, None]:
         """ユーザーメッセージの処理とストリーミング応答生成"""
         # 会話コンテキスト取得
         context = self.active_conversations.get(conversation_id)
@@ -129,53 +92,24 @@ class ConversationManager:
             raise ValueError(f"会話が見つかりません: {conversation_id}")
 
         # キャラクター取得
-        character_manager = self.app_context.get_service("character_manager")
-        character = character_manager.load_character(context.character_id)
-
-        # イベント発行: メッセージ受信
-        self.app_context.publish_event(
-            EventType.MESSAGE_RECEIVED,
-            data={
-                "conversation_id": conversation_id,
-                "user_id": context.user_id,
-                "character_id": context.character_id,
-                "message": user_message,
-            },
-            source="conversation_manager",
-        )
+        character = self.character_service.get_character(context.character_id)
 
         # ユーザーメッセージ追加
         user_msg = Message(role="user", content=user_message)
         context.messages.append(user_msg)
 
         # 関連記憶の取得
-        memory_manager = None
-        memories = []
-        if self.app_context.has_service("memory_manager"):
-            memory_manager = self.app_context.get_service("memory_manager")
-            memories = await memory_manager.retrieve_relevant_memories(
-                character.id, user_message, limit=5
-            )
+        memories = await self.memory_service.retrieve_relevant_memories(
+            character.id, user_message, limit=5
+        )
 
         # プロンプト構築
         prompt_messages = await self._build_prompt(context, character, memories)
 
-        # イベント発行: メッセージ処理完了
-        self.app_context.publish_event(
-            EventType.MESSAGE_PROCESSED,
-            data={
-                "conversation_id": conversation_id,
-                "user_id": context.user_id,
-                "character_id": context.character_id,
-                "message": user_message,
-            },
-            source="conversation_manager",
-        )
-
         # LLM応答生成 (ストリーミング)
         try:
             full_response = ""
-            async for token in self.langchain_service.generate_stream(prompt_messages):
+            async for token in self.llm_service.generate_stream(prompt_messages):
                 full_response += token
                 yield token
 
@@ -186,25 +120,12 @@ class ConversationManager:
             # 更新時間の更新
             context.updated_at = datetime.now()
 
-            # イベント発行: 応答生成
-            self.app_context.publish_event(
-                EventType.RESPONSE_GENERATED,
-                data={
-                    "conversation_id": conversation_id,
-                    "user_id": context.user_id,
-                    "character_id": context.character_id,
-                    "message": full_response,
-                },
-                source="conversation_manager",
-            )
-
             # 新しい記憶の保存
-            if memory_manager:
-                await memory_manager.add_memory(
-                    character_id=character.id,
-                    user_id=context.user_id,
-                    text=f"User: {user_message}\nAssistant: {full_response}",
-                )
+            await self.memory_service.add_memory(
+                character_id=character.id,
+                user_id=context.user_id,
+                text=f"User: {user_message}\nAssistant: {full_response}",
+            )
 
         except Exception as e:
             raise LLMError(f"ストリーミング応答生成中にエラーが発生しました: {e}")
@@ -253,7 +174,7 @@ class ConversationManager:
         messages = [Message(role="system", content=enhanced_system_prompt)]
 
         # 会話履歴の追加（最新の数件）
-        history_limit = 10  # 履歴の制限数
+        history_limit = 10
         history = (
             context.messages[-history_limit:]
             if len(context.messages) > history_limit
@@ -288,3 +209,21 @@ class ConversationManager:
         """会話コンテキストの削除"""
         if conversation_id in self.active_conversations:
             del self.active_conversations[conversation_id]
+
+    async def summarize_conversation(self, conversation_id: str) -> str:
+        """会話の要約を生成する"""
+        context = self.get_conversation(conversation_id)
+        if not context or len(context.messages) < 3:
+            return "会話が十分ではありません。"
+        conversation_text = "\n".join(f"{msg.role}: {msg.content}" for msg in context.messages)
+        system_template = (
+            "あなたは会話の要約を生成するアシスタントです。\n"
+            "以下の会話を3-5文で要約してください。会話の主要な内容と重要な情報を含めてください。"
+        )
+        human_template = "{conversation}"
+        summary = await self.llm_service.generate_with_template(
+            system_template=system_template,
+            human_template=human_template,
+            variables={"conversation": conversation_text}
+        )
+        return summary 

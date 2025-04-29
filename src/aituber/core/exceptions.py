@@ -1,9 +1,28 @@
-"""Exception classes for AITuber framework."""
+"""アプリケーションの例外定義"""
 
 
 class AITuberError(Exception):
-    """AITuberフレームワークの基本例外クラス"""
+    """AITuberアプリケーションの基本例外"""
+    pass
 
+
+class LLMError(AITuberError):
+    """LLM関連の例外"""
+    pass
+
+
+class MemoryError(AITuberError):
+    """メモリ関連の例外"""
+    pass
+
+
+class CharacterError(AITuberError):
+    """キャラクター関連の例外"""
+    pass
+
+
+class IntegrationError(AITuberError):
+    """外部サービス連携関連の例外"""
     pass
 
 
@@ -13,32 +32,8 @@ class ConfigError(AITuberError):
     pass
 
 
-class CharacterError(AITuberError):
-    """キャラクター関連のエラー"""
-
-    pass
-
-
 class StorageError(AITuberError):
     """ストレージ関連のエラー"""
-
-    pass
-
-
-class LLMError(AITuberError):
-    """LLM関連のエラー"""
-
-    pass
-
-
-class MemoryError(AITuberError):
-    """記憶システム関連のエラー"""
-
-    pass
-
-
-class IntegrationError(AITuberError):
-    """外部統合関連のエラー"""
 
     pass
 

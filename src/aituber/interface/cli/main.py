@@ -6,9 +6,10 @@ import typer
 from typing import Optional
 import yaml
 
-from ..core.config import ConfigManager
-from ..app import get_app
-from ..character.models import Character, Persona, PersonalityTrait, Interest
+from aituber.core.config import ConfigManager
+from aituber.app import get_app
+from aituber.core.services.character import Character, Persona, PersonalityTrait, Interest, CharacterService
+from aituber.core.services.conversation import ConversationService
 
 app = typer.Typer(help="AITuber CLI")
 
@@ -65,7 +66,6 @@ def initialize(
         sample_character = Character(
             id="railly",
             name="らいりぃ",
-            version="1.0.0",
             description="中性的な高校生～大学生のペルソナ。青髪＋猫耳ヘッドホンがトレードマーク。音楽（YOASOBIが好き）、漫画、ゲームが趣味。",
             system_prompt="""あなたは「らいりぃ」というAIキャラクターです。
 会話では一人称に「私」を使い、やや砕けた口調で話します。
@@ -84,22 +84,22 @@ def initialize(
                 PersonalityTrait(
                     name="好奇心旺盛",
                     description="新しいことに挑戦するのが好きで、様々な話題に興味を持ちます。",
-                    strength=0.9,
+                    score=0.9,
                 ),
                 PersonalityTrait(
                     name="マイペース",
                     description="自分のペースを大切にし、焦らず着実に物事を進めます。",
-                    strength=0.7,
+                    score=0.7,
                 ),
                 PersonalityTrait(
                     name="親しみやすい",
                     description="初対面でも打ち解けやすく、誰とでも仲良くなれる性格です。",
-                    strength=0.8,
+                    score=0.8,
                 ),
                 PersonalityTrait(
                     name="共感力が高い",
                     description="相手の気持ちを理解し、寄り添うことができます。",
-                    strength=0.8,
+                    score=0.8,
                 ),
             ],
             interests=[
@@ -152,26 +152,22 @@ def chat(
         try:
             # アプリケーション初期化
             app_instance = await get_app(config_path)
-            context = app_instance.get_context()
 
             # キャラクターの読み込み
-            character_manager = context.get_service("character_manager")
+            character_service: CharacterService = app_instance.character_service
             try:
-                character = character_manager.load_character(character_id)
+                character = character_service.load_character(character_id)
             except Exception as e:
                 typer.echo(
                     f"エラー: キャラクター '{character_id}' の読み込みに失敗しました: {e}"
                 )
                 return
 
-            # アクティブキャラクターとして設定
-            character_manager.set_active_character(character_id)
-
             # 会話マネージャー
-            conversation_manager = context.get_service("conversation_manager")
+            conversation_service: ConversationService = app_instance.conversation_service
 
             # 会話コンテキスト作成
-            conversation = conversation_manager.get_or_create_conversation(
+            conversation = conversation_service.get_or_create_conversation(
                 character_id=character_id, user_id="cli_user"
             )
 
@@ -192,14 +188,14 @@ def chat(
                 if stream:
                     # ストリーミングレスポンス
                     typer.echo(f"{character.name}: ", nl=False)
-                    async for token in conversation_manager.process_message_stream(
+                    async for token in conversation_service.process_message_stream(
                         conversation.conversation_id, user_input
                     ):
                         typer.echo(token, nl=False)
                     typer.echo()
                 else:
                     # 通常レスポンス
-                    response = await conversation_manager.process_message(
+                    response = await conversation_service.process_message(
                         conversation.conversation_id, user_input
                     )
                     typer.echo(f"{character.name}: {response}")
@@ -223,13 +219,12 @@ def list_characters(
         try:
             # アプリケーション初期化
             app_instance = await get_app(config_path)
-            context = app_instance.get_context()
 
             # キャラクターマネージャー
-            character_manager = context.get_service("character_manager")
+            character_service: CharacterService = app_instance.character_service
 
             # キャラクター一覧取得
-            characters = character_manager.list_characters()
+            characters = character_service.list_characters()
 
             if not characters:
                 typer.echo("利用可能なキャラクターはありません。")

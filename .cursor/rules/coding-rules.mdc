@@ -18,13 +18,16 @@ alwaysApply: false
 * cliはtyperで実装する
 * データモデルはPydanticで実装する
 * APIはFastAPIで実装する
-## package管理
-uvを使用する。
+* 整形, import周りはruffのデフォルトの規則に従う
+## uv
+package管理、処理の実行にuvを使用する。
 ```bash
-# 実行時
-uv run xx.py
 # package追加
 uv add {package_name}
 # group分け
 uv add {package_name} --group {group}
+# 実行
+uv run xx.py
+# モジュールの実行(pytestの例)
+uv run pytest tests/
 ```

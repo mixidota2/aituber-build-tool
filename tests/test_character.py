@@ -1,13 +1,20 @@
 """キャラクター機能のテスト."""
 
-import os
 import tempfile
 import pytest
-from aituber.character.models import Character, Persona, PersonalityTrait, Interest
-from aituber.character.storage import FileSystemCharacterStorage
-from aituber.character.manager import CharacterManager
-from aituber.core.context import AppContext
-from aituber.core.config import AITuberConfig, CharacterConfig
+from pydantic import ValidationError
+from aituber.core.services.character import Character, Persona, PersonalityTrait, Interest, CharacterService
+from aituber.integrations.storage.character import FileSystemCharacterStorage
+from aituber.core.container import Container
+from aituber.core.config import (
+    AITuberConfig,
+    AppConfig,
+    CharacterConfig,
+    LLMConfig,
+    MemoryConfig,
+    IntegrationsConfig,
+)
+from aituber.core.exceptions import CharacterError
 
 
 @pytest.fixture
@@ -29,7 +36,6 @@ def sample_character():
     return Character(
         id="test_char",
         name="テストキャラクター",
-        version="1.0.0",
         description="テスト用キャラクター",
         system_prompt="あなたはテスト用のキャラクターです。",
         persona=Persona(
@@ -44,7 +50,7 @@ def sample_character():
             PersonalityTrait(
                 name="真面目",
                 description="テストに真面目に取り組みます。",
-                strength=0.8,
+                score=0.8,
             )
         ],
         interests=[
@@ -64,25 +70,22 @@ def character_storage(temp_character_dir):
 
 
 @pytest.fixture
-def app_context(character_config, temp_character_dir):
-    """アプリケーションコンテキストのフィクスチャ."""
-    config = AITuberConfig()
-    config.character = character_config
-    context = AppContext(config)
-    
-    # キャラクターストレージを登録
-    storage = FileSystemCharacterStorage(temp_character_dir)
-    context.register_service("character_storage", storage)
-    
-    return context
+def container(character_config, temp_character_dir):
+    """DIコンテナのフィクスチャ."""
+    config = AITuberConfig(
+        app=AppConfig(data_dir=temp_character_dir),
+        character=character_config,
+        llm=LLMConfig(),
+        memory=MemoryConfig(),
+        integrations=IntegrationsConfig()
+    )
+    return Container(config)
 
 
 @pytest.fixture
-def character_manager(app_context, character_storage):
-    """キャラクターマネージャーのフィクスチャ."""
-    manager = CharacterManager(app_context, character_storage)
-    app_context.register_service("character_manager", manager)
-    return manager
+def character_service(container):
+    """キャラクターサービスのフィクスチャ."""
+    return container.character_service
 
 
 def test_character_creation():
@@ -92,6 +95,7 @@ def test_character_creation():
         name="Test Character",
         system_prompt="This is a test prompt",
         description="Test description",
+        persona=Persona(),
     )
     
     assert character.id == "test_id"
@@ -102,17 +106,11 @@ def test_character_creation():
 
 def test_character_save_and_load(character_storage, sample_character):
     """キャラクターの保存と読み込みをテスト."""
-    # キャラクターデータを辞書形式に変換して保存する必要がある
-    character_data = sample_character.model_dump()
-    character_storage.save_character(sample_character.id, character_data)
-    
-    # ファイルが存在することを確認
-    expected_path = character_storage.get_character_path(sample_character.id)
-    assert os.path.exists(expected_path)
+    # キャラクターを保存
+    character_storage.save(sample_character)
     
     # 読み込み
-    loaded_data = character_storage.get_character(sample_character.id)
-    loaded_character = Character.model_validate(loaded_data)
+    loaded_character = character_storage.load(sample_character.id)
     
     # 内容を検証
     assert loaded_character.id == sample_character.id
@@ -124,17 +122,17 @@ def test_character_save_and_load(character_storage, sample_character):
 def test_character_list(character_storage, sample_character):
     """キャラクター一覧取得のテスト."""
     # キャラクターを保存
-    character_storage.save_character(sample_character.id, sample_character.model_dump())
+    character_storage.save(sample_character)
     
     # 別のキャラクターも保存
     second_character = Character(
         id="test_char2",
         name="テストキャラクター2",
-        version="1.0.0",
         description="2つ目のテスト用キャラクター",
         system_prompt="あなたは2つ目のテスト用キャラクターです。",
+        persona=Persona(),
     )
-    character_storage.save_character(second_character.id, second_character.model_dump())
+    character_storage.save(second_character)
     
     # 一覧を取得
     character_ids = character_storage.list_characters()
@@ -145,21 +143,102 @@ def test_character_list(character_storage, sample_character):
     assert "test_char2" in character_ids
 
 
-def test_character_manager(character_manager, sample_character):
-    """キャラクターマネージャーのテスト."""
+def test_character_service(character_service, sample_character):
+    """キャラクターサービスのテスト."""
     # キャラクターを作成
-    character_manager.create_character(sample_character)
+    created_character = character_service.create_character(
+        name=sample_character.name,
+        description=sample_character.description,
+        system_prompt=sample_character.system_prompt,
+        persona=sample_character.persona,
+        personality_traits=sample_character.personality_traits,
+        interests=sample_character.interests,
+    )
     
-    # キャラクターを読み込み
-    loaded_character = character_manager.load_character(sample_character.id)
-    assert loaded_character.id == sample_character.id
-    
-    # アクティブキャラクターとして設定
-    character_manager.set_active_character(sample_character.id)
-    active_character = character_manager.get_active_character()
-    assert active_character.id == sample_character.id
+    # キャラクターを取得
+    loaded_character = character_service.get_character(created_character.id)
+    assert loaded_character.id == created_character.id
     
     # キャラクター一覧を取得
-    characters = character_manager.list_characters()
+    characters = character_service.list_characters()
     assert len(characters) == 1
-    assert characters[0].id == sample_character.id 
+    assert characters[0].id == created_character.id 
+
+
+def test_character_save_with_invalid_path(character_storage, sample_character):
+    """無効なパスでのキャラクター保存テスト."""
+    # 無効なパスを設定
+    character_storage.base_dir = "/invalid/path"
+
+    with pytest.raises(CharacterError) as exc_info:
+        character_storage.save(sample_character)
+    assert "保存先ディレクトリにアクセスできません" in str(exc_info.value)
+
+
+def test_character_load_nonexistent(character_storage):
+    """存在しないキャラクターの読み込みテスト."""
+    with pytest.raises(CharacterError) as exc_info:
+        character_storage.load("nonexistent_character")
+    assert "キャラクターファイルが見つかりません" in str(exc_info.value)
+
+
+def test_character_save_with_invalid_data(character_storage):
+    """無効なデータでのキャラクター保存テスト."""
+    try:
+        invalid_character = Character(
+            id="",  # 空のID
+            name="テストキャラクター",
+            description="テスト用キャラクター",
+            system_prompt="あなたはテスト用のキャラクターです。",
+            persona=Persona(),
+        )
+        pytest.fail("空のIDを持つキャラクターの作成が成功してしまいました")
+    except ValidationError as e:
+        assert "String should have at least 1 character" in str(e)
+
+
+def test_character_list_with_empty_directory(temp_character_dir):
+    """空のディレクトリでのキャラクター一覧取得テスト."""
+    storage = FileSystemCharacterStorage(temp_character_dir)
+    character_ids = storage.list_characters()
+    
+    assert len(character_ids) == 0
+
+
+def test_character_save_with_duplicate_id(character_storage, sample_character):
+    """重複IDでのキャラクター保存テスト."""
+    # 1回目の保存
+    character_storage.save(sample_character)
+    
+    # 同じIDで別のキャラクターを保存
+    duplicate_character = Character(
+        id=sample_character.id,
+        name="重複キャラクター",
+        description="重複テスト用",
+        system_prompt="重複テスト用のプロンプト",
+        persona=Persona(),
+    )
+    
+    # 上書き保存が成功することを確認
+    character_storage.save(duplicate_character)
+    
+    # 読み込んで内容を確認
+    loaded_character = character_storage.load(sample_character.id)
+    assert loaded_character.name == "重複キャラクター"
+
+
+def test_character_save_with_special_characters(character_storage):
+    """特殊文字を含むキャラクター保存テスト."""
+    special_character = Character(
+        id="special_test",
+        name="特殊文字テスト!@#$%^&*()",
+        description="特殊文字を含む説明!@#$%^&*()",
+        system_prompt="特殊文字を含むプロンプト!@#$%^&*()",
+        persona=Persona(),
+    )
+    
+    character_storage.save(special_character)
+    loaded_character = character_storage.load("special_test")
+    
+    assert loaded_character.name == "特殊文字テスト!@#$%^&*()"
+    assert loaded_character.description == "特殊文字を含む説明!@#$%^&*()" 
