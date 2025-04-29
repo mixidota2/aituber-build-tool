@@ -325,22 +325,14 @@ async def test_chromadb_service_add_and_search(container: Container):
     
     # メモリを追加
     await memory_service.add_memory(
-        text="テストメモリ1",
-        metadata={
-            "timestamp": "2024-03-21T00:00:00",
-            "character_id": "test_char",
-            "source": "test",
-            "additional_context": {"test": "value1"}
-        }
+        character_id="test_char",
+        user_id="test_user",
+        text="テストメモリ1"
     )
     await memory_service.add_memory(
-        text="テストメモリ2",
-        metadata={
-            "timestamp": "2024-03-21T00:00:00",
-            "character_id": "test_char",
-            "source": "test",
-            "additional_context": {"test": "value2"}
-        }
+        character_id="test_char",
+        user_id="test_user",
+        text="テストメモリ2"
     )
     
     # 類似メモリを検索
