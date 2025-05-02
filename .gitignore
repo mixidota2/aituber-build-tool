@@ -178,3 +178,8 @@ cython_debug/
 /characters/
 /vector_db/
 config.yaml
+
+# voicevox
+download
+voicevox_core-*.whl
+voicevox_core/
