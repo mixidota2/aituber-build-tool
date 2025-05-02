@@ -9,7 +9,6 @@ from aituber.core.services.character import CharacterService
 from aituber.core.services.llm.base import BaseLLMService
 from aituber.core.services.memory.base import BaseMemoryService
 from aituber.core.models.character import Character, Persona
-from datetime import datetime
 
 
 @pytest.fixture
