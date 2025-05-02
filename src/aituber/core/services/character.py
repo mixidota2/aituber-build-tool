@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 from ..config import AITuberConfig
 from ..exceptions import CharacterError
 from ..models.character import Character, Persona, PersonalityTrait, Interest
-from ...integrations.storage.character import FileSystemCharacterStorage
+from .storage.character import FileSystemCharacterStorage
 
 class CharacterService:
     """キャラクター管理サービス"""

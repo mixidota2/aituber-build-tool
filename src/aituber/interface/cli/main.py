@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from pathlib import Path
 import typer
 from typing import Optional
 import yaml
@@ -35,20 +36,20 @@ def initialize(
     config = config_manager.get_config()
 
     # データディレクトリの設定
-    config.app.data_dir = data_dir
+    config.app.data_dir = Path(data_dir)
 
     # APIキーの設定（環境変数から取得または直接指定）
     if openai_api_key:
-        config.llm.api_key = openai_api_key
+        config.integrations.openai.api_key = openai_api_key
     elif "OPENAI_API_KEY" in os.environ:
-        config.llm.api_key = os.environ["OPENAI_API_KEY"]
+        config.integrations.openai.api_key = os.environ["OPENAI_API_KEY"]
 
     # 設定保存
     config_manager.save_config(config)
 
     # 必要なディレクトリを作成
-    characters_dir = os.path.join(data_dir, config.character.characters_dir)
-    vector_db_dir = os.path.join(data_dir, config.memory.vector_db_path)
+    characters_dir = os.path.join(data_dir, str(config.character.characters_dir))
+    vector_db_dir = os.path.join(data_dir, str(config.memory.vector_db_path))
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
     if not os.path.exists(characters_dir):

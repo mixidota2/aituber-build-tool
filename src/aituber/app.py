@@ -3,12 +3,12 @@
 import os
 from typing import Optional
 
-from .core.config import ConfigManager, AITuberConfig
+from .core.config import ConfigManager
 from .core.container import Container
 from .core.services.character import CharacterService
+from .core.services.memory import MemoryService
 from .core.services.conversation import ConversationService
 from .core.services.llm import LLMService
-from .core.services.memory import MemoryService
 
 class AITuberApp:
     """AITuberアプリケーションのメインクラス"""
@@ -34,10 +34,10 @@ class AITuberApp:
         """キャラクターサービスを取得する"""
         return self._container.character_service
 
-    # @property
-    # def memory_service(self) -> MemoryService:
-    #     """メモリサービスを取得する"""
-    #     return self._container.memory_service
+    @property
+    def memory_service(self) -> MemoryService:
+        """メモリサービスを取得する"""
+        return self._container.memory_service
 
     @property
     def conversation_service(self) -> ConversationService:
@@ -54,7 +54,7 @@ class AITuberApp:
             # 各サービスにアクセスして初期化を行う
             _ = self.llm_service
             _ = self.character_service
-            #_ = self.memory_service
+            _ = self.memory_service
             _ = self.conversation_service
 
         except Exception as e:

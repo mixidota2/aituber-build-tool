@@ -9,8 +9,9 @@ from pydantic import BaseModel, Field
 from ..config import AITuberConfig
 from ..exceptions import LLMError
 from .character import CharacterService
-from .memory import MemoryService
-from .llm import LLMService, Message
+from .memory.base import BaseMemoryService, Memory
+from .llm.base import BaseLLMService, Message
+from ..models.character import Character
 
 class ConversationContext(BaseModel):
     """会話コンテキスト"""
@@ -29,8 +30,8 @@ class ConversationService:
         self,
         config: AITuberConfig,
         character_service: CharacterService,
-        memory_service: MemoryService,
-        llm_service: LLMService
+        memory_service: BaseMemoryService,
+        llm_service: BaseLLMService
     ):
         self.config = config
         self.character_service = character_service
@@ -109,7 +110,8 @@ class ConversationService:
         # LLM応答生成 (ストリーミング)
         try:
             full_response = ""
-            async for token in self.llm_service.generate_stream(prompt_messages):
+            stream = await self.llm_service.generate_stream(prompt_messages)
+            async for token in stream:
                 full_response += token
                 yield token
 
@@ -131,7 +133,7 @@ class ConversationService:
             raise LLMError(f"ストリーミング応答生成中にエラーが発生しました: {e}")
 
     async def _build_prompt(
-        self, context: ConversationContext, character: Any, memories: List[Any] | None = None
+        self, context: ConversationContext, character: Character, memories: List[Memory] | None = None
     ) -> List[Message]:
         """プロンプトの構築（システムプロンプト、記憶、会話履歴）"""
         # システムプロンプト
@@ -146,19 +148,19 @@ class ConversationService:
 
         # キャラクター情報の追加
         persona_text = f"""
-あなたの名前は{character.name}です。
-{character.description}
+                あなたの名前は{character.name}です。
+                {character.description}
 
-ペルソナ:
-- 年齢: {character.persona.age if character.persona.age else "不明"}
-- 性別: {character.persona.gender if character.persona.gender else "不明"}
-- 職業: {character.persona.occupation if character.persona.occupation else "不明"}
-- 背景: {character.persona.background if character.persona.background else "特になし"}
-- 見た目: {character.persona.appearance if character.persona.appearance else "特になし"}
-- 話し方: {character.persona.speech_style if character.persona.speech_style else "特になし"}
+                ペルソナ:
+                - 年齢: {character.persona.age if character.persona.age else "不明"}
+                - 性別: {character.persona.gender if character.persona.gender else "不明"}
+                - 職業: {character.persona.occupation if character.persona.occupation else "不明"}
+                - 背景: {character.persona.background if character.persona.background else "特になし"}
+                - 見た目: {character.persona.appearance if character.persona.appearance else "特になし"}
+                - 話し方: {character.persona.speech_style if character.persona.speech_style else "特になし"}
 
-性格:
-"""
+                性格:
+            """
 
         for trait in character.personality_traits:
             persona_text += f"- {trait.name}: {trait.description}\n"

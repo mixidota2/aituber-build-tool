@@ -2,23 +2,44 @@
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, create_autospec
-from aituber.core.services.conversation import ConversationService, ConversationContext, Message
-from aituber.core.container import Container
+from aituber.core.services.conversation import ConversationService, ConversationContext
+from aituber.core.services.llm.base import Message
+from aituber.core.container import ServiceContainer
 from aituber.core.services.character import CharacterService
-from aituber.core.services.llm import LLMService
-from aituber.core.services.memory import MemoryService
-from typing import AsyncGenerator
+from aituber.core.services.llm.base import BaseLLMService
+from aituber.core.services.memory.base import BaseMemoryService
+from aituber.core.models.character import Character, Persona
+from datetime import datetime
 
 
 @pytest.fixture
-def container() -> Container:
+def sample_character():
+    """サンプルキャラクターのフィクスチャ."""
+    return Character(
+        id="test_char",
+        name="テストキャラクター",
+        description="テスト用のキャラクター",
+        system_prompt="あなたはテストキャラクターです。",
+        persona=Persona(
+            age=20,
+            gender="female",
+            occupation="学生",
+            background="テスト大学に通う大学生",
+            appearance="長い黒髪、制服姿",
+            speech_style="丁寧な口調"
+        )
+    )
+
+
+@pytest.fixture
+def container() -> ServiceContainer:
     """DIコンテナのフィクスチャ."""
-    container = Container(config=MagicMock())
+    container = ServiceContainer(config=MagicMock())
     
     # 各サービスのモックを作成
-    llm_mock = MagicMock(spec=LLMService)
+    llm_mock = MagicMock(spec=BaseLLMService)
     character_mock = MagicMock(spec=CharacterService)
-    memory_mock = create_autospec(MemoryService, instance=True)
+    memory_mock = create_autospec(BaseMemoryService, instance=True)
     
     # モックをコンテナに設定
     container._llm_service = llm_mock
@@ -29,29 +50,15 @@ def container() -> Container:
 
 
 @pytest.fixture
-def sample_character() -> MagicMock:
-    """サンプルキャラクターのフィクスチャ."""
-    character = MagicMock()
-    character.id = "test_character"
-    character.name = "テストキャラクター"
-    character.description = "テスト用のキャラクター"
-    character.system_prompt = "あなたはテスト用のキャラクターです。"
-    character.persona = MagicMock()
-    character.personality_traits = []
-    character.interests = []
-    return character
-
-
-@pytest.fixture
-def conversation_service(container: Container) -> ConversationService:
+def conversation_service(container: ServiceContainer) -> ConversationService:
     """会話サービスのフィクスチャ."""
     return container.conversation_service
 
 
 def test_get_or_create_conversation(
     conversation_service: ConversationService,
-    sample_character: MagicMock,
-    container: Container,
+    sample_character: Character,
+    container: ServiceContainer,
 ) -> None:
     """会話作成のテスト."""
     character_service = container.character_service
@@ -77,8 +84,8 @@ def test_get_or_create_conversation(
 
 def test_delete_conversation(
     conversation_service: ConversationService,
-    sample_character: MagicMock,
-    container: Container,
+    sample_character: Character,
+    container: ServiceContainer,
 ) -> None:
     """会話削除のテスト."""
     character_service = container.character_service
@@ -96,8 +103,8 @@ def test_delete_conversation(
 @pytest.mark.asyncio
 async def test_process_message(
     conversation_service: ConversationService,
-    container: Container,
-    sample_character: MagicMock,
+    container: ServiceContainer,
+    sample_character: Character,
 ) -> None:
     """メッセージ処理のテスト."""
     character_service = container.character_service
@@ -124,8 +131,8 @@ async def test_process_message(
 @pytest.mark.asyncio
 async def test_process_message_stream(
     conversation_service: ConversationService,
-    container: Container,
-    sample_character: MagicMock,
+    container: ServiceContainer,
+    sample_character: Character,
 ) -> None:
     """ストリーミングメッセージ処理のテスト."""
     character_service = container.character_service
@@ -133,33 +140,38 @@ async def test_process_message_stream(
     llm_service = container.llm_service
 
     tokens = ["A", "I", "応", "答"]
-    token_iter = iter(tokens)
 
-    async def mock_anext(self):
-        try:
-            return next(token_iter)
-        except StopIteration:
-            raise StopAsyncIteration
+    class AsyncIteratorMock:
+        def __init__(self, tokens):
+            self.tokens = tokens
+            self.index = 0
 
-    mock_generator = MagicMock()
-    mock_generator.__aiter__ = MagicMock(return_value=mock_generator)
-    mock_generator.__anext__ = mock_anext
+        def __aiter__(self):
+            return self
 
-    llm_service.generate_stream = MagicMock(return_value=mock_generator)
+        async def __anext__(self):
+            if self.index >= len(self.tokens):
+                raise StopAsyncIteration
+            token = self.tokens[self.index]
+            self.index += 1
+            return token
+
+    mock_generator = AsyncIteratorMock(tokens)
+    llm_service.generate_stream = AsyncMock(return_value=mock_generator)
 
     ctx = conversation_service.get_or_create_conversation(
         character_id=sample_character.id,
         user_id="test_user"
     )
 
-    tokens = []
+    received_tokens = []
     async for token in conversation_service.process_message_stream(
         conversation_id=ctx.conversation_id,
         user_message="こんにちは"
     ):
-        tokens.append(token)
+        received_tokens.append(token)
 
-    assert "".join(tokens) == "AI応答"
+    assert received_tokens == tokens
     assert len(ctx.messages) == 2
     assert ctx.messages[-1].content == "AI応答"
     assert ctx.messages[-1].role == "assistant"
@@ -168,8 +180,8 @@ async def test_process_message_stream(
 @pytest.mark.asyncio
 async def test_summarize_conversation(
     conversation_service: ConversationService,
-    container: Container,
-    sample_character: MagicMock,
+    container: ServiceContainer,
+    sample_character: Character,
 ) -> None:
     """会話要約のテスト."""
     character_service = container.character_service
