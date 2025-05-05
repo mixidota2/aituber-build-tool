@@ -66,7 +66,7 @@ class BaseStorageService(ABC):
         self,
         file_path: Path,
         content: bytes | str | BinaryIO,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """ファイルを保存する"""
         pass
@@ -83,9 +83,7 @@ class BaseStorageService(ABC):
 
     @abstractmethod
     async def list_files(
-        self,
-        directory: Path,
-        pattern: Optional[str] = None
+        self, directory: Path, pattern: Optional[str] = None
     ) -> List[Path]:
         """ファイル一覧を取得する"""
         pass
@@ -97,9 +95,7 @@ class BaseStorageService(ABC):
 
     @abstractmethod
     async def update_metadata(
-        self,
-        file_path: Path,
-        metadata: Dict[str, Any]
+        self, file_path: Path, metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         """ファイルのメタデータを更新する"""
-        pass 
+        pass

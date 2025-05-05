@@ -9,7 +9,13 @@ import yaml
 
 from aituber.core.config import ConfigManager
 from aituber.app import get_app
-from aituber.core.services.character import Character, Persona, PersonalityTrait, Interest, CharacterService
+from aituber.core.services.character import (
+    Character,
+    Persona,
+    PersonalityTrait,
+    Interest,
+    CharacterService,
+)
 from aituber.core.services.conversation import ConversationService
 
 app = typer.Typer(help="AITuber CLI")
@@ -165,7 +171,9 @@ def chat(
                 return
 
             # 会話マネージャー
-            conversation_service: ConversationService = app_instance.conversation_service
+            conversation_service: ConversationService = (
+                app_instance.conversation_service
+            )
 
             # 会話コンテキスト作成
             conversation = conversation_service.get_or_create_conversation(

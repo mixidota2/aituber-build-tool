@@ -13,8 +13,10 @@ from .memory.base import BaseMemoryService, Memory
 from .llm.base import BaseLLMService, Message
 from ..models.character import Character
 
+
 class ConversationContext(BaseModel):
     """会話コンテキスト"""
+
     character_id: str
     user_id: str
     conversation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -22,6 +24,7 @@ class ConversationContext(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
 
 class ConversationService:
     """会話管理サービス"""
@@ -31,7 +34,7 @@ class ConversationService:
         config: AITuberConfig,
         character_service: CharacterService,
         memory_service: BaseMemoryService,
-        llm_service: BaseLLMService
+        llm_service: BaseLLMService,
     ):
         self.config = config
         self.character_service = character_service
@@ -133,7 +136,10 @@ class ConversationService:
             raise LLMError(f"ストリーミング応答生成中にエラーが発生しました: {e}")
 
     async def _build_prompt(
-        self, context: ConversationContext, character: Character, memories: List[Memory] | None = None
+        self,
+        context: ConversationContext,
+        character: Character,
+        memories: List[Memory] | None = None,
     ) -> List[Message]:
         """プロンプトの構築（システムプロンプト、記憶、会話履歴）"""
         # システムプロンプト
@@ -217,7 +223,9 @@ class ConversationService:
         context = self.get_conversation(conversation_id)
         if not context or len(context.messages) < 3:
             return "会話が十分ではありません。"
-        conversation_text = "\n".join(f"{msg.role}: {msg.content}" for msg in context.messages)
+        conversation_text = "\n".join(
+            f"{msg.role}: {msg.content}" for msg in context.messages
+        )
         system_template = (
             "あなたは会話の要約を生成するアシスタントです。\n"
             "以下の会話を3-5文で要約してください。会話の主要な内容と重要な情報を含めてください。"
@@ -226,6 +234,6 @@ class ConversationService:
         summary = await self.llm_service.generate_with_template(
             system_template=system_template,
             human_template=human_template,
-            variables={"conversation": conversation_text}
+            variables={"conversation": conversation_text},
         )
-        return summary 
+        return summary

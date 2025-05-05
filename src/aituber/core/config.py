@@ -10,11 +10,11 @@ from pathlib import Path
 def resolve_data_path(data_dir: str, relative_path: str) -> str:
     """
     アプリケーションのデータディレクトリからの相対パスを解決する
-    
+
     Args:
         data_dir: ベースとなるデータディレクトリ
         relative_path: data_dirからの相対パス
-    
+
     Returns:
         解決された絶対パス
     """
@@ -23,12 +23,14 @@ def resolve_data_path(data_dir: str, relative_path: str) -> str:
 
 class AppConfig(BaseModel):
     """アプリケーション基本設定"""
+
     debug: bool = False
     data_dir: Path = Field(default=Path("data"))
 
 
 class OpenAIConfig(BaseModel):
     """OpenAI設定"""
+
     api_key: str = ""
     organization: Optional[str] = None
     model: str = "gpt-4-turbo-preview"
@@ -41,27 +43,32 @@ class OpenAIConfig(BaseModel):
 
 class StorageConfig(BaseModel):
     """ストレージ設定"""
+
     local_path: Path = Field(default=Path("data/storage"))
 
 
 class MemoryConfig(BaseModel):
     """メモリ設定"""
+
     vector_db_path: Path = Field(default=Path("data/vector_db"))
     collection_name: str = "memories"
 
 
 class CharacterConfig(BaseModel):
     """キャラクター設定"""
+
     characters_dir: Path = Field(default=Path("data/characters"))
 
 
 class IntegrationsConfig(BaseModel):
     """外部サービス統合設定"""
+
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
 
 
 class AITuberConfig(BaseModel):
     """アプリケーション全体設定"""
+
     app: AppConfig = Field(default_factory=AppConfig)
     character: CharacterConfig = Field(default_factory=CharacterConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)

@@ -3,26 +3,31 @@
 
 class AITuberError(Exception):
     """AITuberアプリケーションの基本例外"""
+
     pass
 
 
 class LLMError(AITuberError):
     """LLM関連の例外"""
+
     pass
 
 
 class MemoryError(AITuberError):
     """メモリ関連の例外"""
+
     pass
 
 
 class CharacterError(AITuberError):
     """キャラクター関連の例外"""
+
     pass
 
 
 class IntegrationError(AITuberError):
     """外部サービス連携関連の例外"""
+
     pass
 
 

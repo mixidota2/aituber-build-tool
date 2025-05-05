@@ -10,6 +10,7 @@ from .core.services.memory import MemoryService
 from .core.services.conversation import ConversationService
 from .core.services.llm import LLMService
 
+
 class AITuberApp:
     """AITuberアプリケーションのメインクラス"""
 

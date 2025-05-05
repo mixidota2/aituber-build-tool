@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class Memory(BaseModel):
     """メモリモデル"""
+
     id: str
     character_id: str
     user_id: str
@@ -27,7 +28,7 @@ class BaseMemoryService(ABC):
         character_id: str,
         user_id: str,
         text: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Memory:
         """メモリを追加する"""
         pass
@@ -42,18 +43,14 @@ class BaseMemoryService(ABC):
         self,
         character_id: str,
         limit: Optional[int] = None,
-        offset: Optional[int] = None
+        offset: Optional[int] = None,
     ) -> List[Memory]:
         """メモリ一覧を取得する"""
         pass
 
     @abstractmethod
     async def retrieve_relevant_memories(
-        self,
-        character_id: str,
-        query: str,
-        limit: int = 5,
-        threshold: float = 0.7
+        self, character_id: str, query: str, limit: int = 5, threshold: float = 0.7
     ) -> List[Memory]:
         """関連するメモリを検索する"""
         pass
@@ -63,7 +60,7 @@ class BaseMemoryService(ABC):
         self,
         memory_id: str,
         text: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Memory:
         """メモリを更新する"""
         pass
@@ -71,4 +68,4 @@ class BaseMemoryService(ABC):
     @abstractmethod
     async def delete_memory(self, memory_id: str) -> bool:
         """メモリを削除する"""
-        pass 
+        pass

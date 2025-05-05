@@ -1,6 +1,17 @@
 """ChromaDBを使用したメモリサービスの実装"""
 
-from typing import List, Dict, Any, Optional, cast, TypedDict, Union, TypeVar, Protocol, runtime_checkable
+from typing import (
+    List,
+    Dict,
+    Any,
+    Optional,
+    cast,
+    TypedDict,
+    Union,
+    TypeVar,
+    Protocol,
+    runtime_checkable,
+)
 from typing_extensions import TypeGuard
 from datetime import datetime
 import uuid
@@ -14,23 +25,28 @@ from ....core.exceptions import MemoryError
 from .base import BaseMemoryService, Memory
 from ..llm.base import BaseLLMService
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class MemoryMetadata(TypedDict):
     """メモリのメタデータの型定義"""
+
     character_id: str
     user_id: str
     created_at: str
     updated_at: str
     additional_context: Optional[Dict[str, str]]  # ChromaDBはstr型のみサポート
 
+
 @runtime_checkable
 class ResultProtocol(Protocol):
     def get(self, key: str, default: Any = None) -> Any: ...
 
+
 def is_valid_result(obj: Any) -> TypeGuard[ResultProtocol]:
     """オブジェクトがResultProtocolを満たすかチェック"""
-    return hasattr(obj, 'get') and callable(obj.get)
+    return hasattr(obj, "get") and callable(obj.get)
+
 
 # ChromaDBの型定義
 class ChromaResult(TypedDict, total=False):
@@ -39,6 +55,7 @@ class ChromaResult(TypedDict, total=False):
     metadatas: List[Union[Dict[str, Any], List[Dict[str, Any]]]]
     embeddings: List[Union[List[float], List[List[float]]]]
     distances: List[Union[float, List[float]]]
+
 
 class ChromaDBMemoryService(BaseMemoryService):
     """ChromaDBを使用したメモリサービス"""
@@ -54,9 +71,7 @@ class ChromaDBMemoryService(BaseMemoryService):
         self.llm_service = llm_service
         self.client = chromadb.PersistentClient(
             path=str(self.config.memory.vector_db_path),
-            settings=Settings(
-                anonymized_telemetry=False
-            )
+            settings=Settings(anonymized_telemetry=False),
         )
         self.collection = self.client.get_or_create_collection(
             name=str(self.config.memory.collection_name)
@@ -75,10 +90,16 @@ class ChromaDBMemoryService(BaseMemoryService):
                 chroma_metadata[key] = str(value)
             elif isinstance(value, dict):
                 for sub_key, sub_value in value.items():
-                    if sub_value is not None and isinstance(sub_value, (str, int, float, bool)):
+                    if sub_value is not None and isinstance(
+                        sub_value, (str, int, float, bool)
+                    ):
                         chroma_metadata[f"{key}.{sub_key}"] = str(sub_value)
             elif isinstance(value, (list, tuple)):
-                valid_items = [str(item) for item in value if item is not None and isinstance(item, (str, int, float, bool))]
+                valid_items = [
+                    str(item)
+                    for item in value
+                    if item is not None and isinstance(item, (str, int, float, bool))
+                ]
                 if valid_items:
                     chroma_metadata[key] = ",".join(valid_items)
         return chroma_metadata
@@ -88,7 +109,7 @@ class ChromaDBMemoryService(BaseMemoryService):
         id: str,
         text: str,
         metadata: Metadata,
-        embedding: Optional[List[float]] = None
+        embedding: Optional[List[float]] = None,
     ) -> Memory:
         """ChromaDBの結果をメモリオブジェクトに変換
 
@@ -114,11 +135,12 @@ class ChromaDBMemoryService(BaseMemoryService):
             text=text,
             embedding=embedding,
             metadata={
-                k: v for k, v in metadata.items()
+                k: v
+                for k, v in metadata.items()
                 if k not in ["character_id", "user_id", "created_at", "updated_at"]
             },
             created_at=datetime.fromisoformat(str(metadata["created_at"])),
-            updated_at=datetime.fromisoformat(str(metadata["updated_at"]))
+            updated_at=datetime.fromisoformat(str(metadata["updated_at"])),
         )
 
     def _validate_get_result(self, result: Any) -> TypeGuard[ChromaResult]:
@@ -145,7 +167,7 @@ class ChromaDBMemoryService(BaseMemoryService):
             return False
         if not all(result.get(key) for key in required_keys):  # 空リストのチェック
             return False
-        
+
         # リストの要素が正しい型かチェック
         try:
             for key in required_keys:
@@ -160,7 +182,9 @@ class ChromaDBMemoryService(BaseMemoryService):
             return False
         return True
 
-    def _safe_get_from_result(self, result: Any, key: str, index: int, subindex: Optional[int] = None) -> Any:
+    def _safe_get_from_result(
+        self, result: Any, key: str, index: int, subindex: Optional[int] = None
+    ) -> Any:
         """結果から安全に値を取得する
 
         Args:
@@ -191,10 +215,14 @@ class ChromaDBMemoryService(BaseMemoryService):
                 return item[0] if item else None
             return item
         except (IndexError, TypeError, AttributeError) as e:
-            print(f"値の取得に失敗しました - キー: {key}, インデックス: {index}, サブインデックス: {subindex}, エラー: {e}")
+            print(
+                f"値の取得に失敗しました - キー: {key}, インデックス: {index}, サブインデックス: {subindex}, エラー: {e}"
+            )
             return None
 
-    def _get_embedding(self, result: Any, index: int, is_query: bool = False) -> Optional[List[float]]:
+    def _get_embedding(
+        self, result: Any, index: int, is_query: bool = False
+    ) -> Optional[List[float]]:
         """埋め込みベクトルを安全に取得
 
         Args:
@@ -223,7 +251,9 @@ class ChromaDBMemoryService(BaseMemoryService):
                 embedding = embeddings[index]
             return cast(List[float], embedding) if isinstance(embedding, list) else None
         except (IndexError, TypeError, AttributeError) as e:
-            print(f"埋め込みベクトルの取得に失敗しました - インデックス: {index}, クエリ: {is_query}, エラー: {e}")
+            print(
+                f"埋め込みベクトルの取得に失敗しました - インデックス: {index}, クエリ: {is_query}, エラー: {e}"
+            )
             return None
 
     def _ensure_str_id(self, id_value: Union[str, List[str]]) -> Optional[str]:
@@ -250,7 +280,7 @@ class ChromaDBMemoryService(BaseMemoryService):
         character_id: str,
         user_id: str,
         text: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Memory:
         """メモリを追加する
 
@@ -275,7 +305,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 "character_id": character_id,
                 "user_id": user_id,
                 "created_at": now,
-                "updated_at": now
+                "updated_at": now,
             }
             if metadata:
                 base_metadata.update(self._convert_metadata_to_chroma(metadata))
@@ -289,7 +319,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 ids=[memory_id],
                 embeddings=[embedding],
                 metadatas=[base_metadata],
-                documents=[text]
+                documents=[text],
             )
 
             return Memory(
@@ -300,7 +330,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 embedding=embedding,
                 metadata=metadata or {},
                 created_at=datetime.fromisoformat(now),
-                updated_at=datetime.fromisoformat(now)
+                updated_at=datetime.fromisoformat(now),
             )
         except Exception as e:
             raise MemoryError(f"メモリの追加に失敗しました: {e}")
@@ -308,10 +338,12 @@ class ChromaDBMemoryService(BaseMemoryService):
     async def get_memory(self, memory_id: str) -> Optional[Memory]:
         """メモリを取得する"""
         try:
-            result = cast(ChromaResult, self.collection.get(
-                ids=[memory_id],
-                include=["metadatas", "documents", "embeddings"]
-            ))
+            result = cast(
+                ChromaResult,
+                self.collection.get(
+                    ids=[memory_id], include=["metadatas", "documents", "embeddings"]
+                ),
+            )
             if not self._validate_get_result(result):
                 return None
 
@@ -326,7 +358,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 id=memory_id,
                 text=text,
                 metadata=cast(Metadata, metadata),
-                embedding=self._get_embedding(result, 0)
+                embedding=self._get_embedding(result, 0),
             )
         except Exception as e:
             print(f"メモリの取得に失敗しました: {e}")
@@ -336,17 +368,20 @@ class ChromaDBMemoryService(BaseMemoryService):
         self,
         character_id: str,
         limit: Optional[int] = None,
-        offset: Optional[int] = None
+        offset: Optional[int] = None,
     ) -> List[Memory]:
         """メモリ一覧を取得する"""
         where: Where = {"character_id": {"$eq": character_id}}
         try:
-            result = cast(ChromaResult, self.collection.get(
-                where=where,
-                limit=limit,
-                offset=offset,
-                include=["metadatas", "documents", "embeddings"]
-            ))
+            result = cast(
+                ChromaResult,
+                self.collection.get(
+                    where=where,
+                    limit=limit,
+                    offset=offset,
+                    include=["metadatas", "documents", "embeddings"],
+                ),
+            )
 
             if not self._validate_get_result(result):
                 return []
@@ -356,25 +391,31 @@ class ChromaDBMemoryService(BaseMemoryService):
                 text = self._safe_get_from_result(result, "documents", i)
                 metadata = self._safe_get_from_result(result, "metadatas", i)
                 str_memory_id = self._ensure_str_id(memory_id)
-                
+
                 if str_memory_id is None or text is None or metadata is None:
                     continue
 
                 # 型チェックの保証
-                assert isinstance(str_memory_id, str), "str_memory_idはstr型である必要があります"
+                assert isinstance(str_memory_id, str), (
+                    "str_memory_idはstr型である必要があります"
+                )
                 assert isinstance(text, str), "textはstr型である必要があります"
-                assert isinstance(metadata, dict), "metadataはdict型である必要があります"
+                assert isinstance(metadata, dict), (
+                    "metadataはdict型である必要があります"
+                )
 
                 try:
                     memory = self._convert_chroma_to_memory(
                         id=str_memory_id,
                         text=text,
                         metadata=cast(Metadata, metadata),
-                        embedding=self._get_embedding(result, i)
+                        embedding=self._get_embedding(result, i),
                     )
                     memories.append(memory)
                 except ValueError as e:
-                    print(f"メモリの変換に失敗しました - ID: {str_memory_id}, エラー: {e}")
+                    print(
+                        f"メモリの変換に失敗しました - ID: {str_memory_id}, エラー: {e}"
+                    )
                     continue
 
             return memories
@@ -383,11 +424,7 @@ class ChromaDBMemoryService(BaseMemoryService):
             return []
 
     async def retrieve_relevant_memories(
-        self,
-        character_id: str,
-        query: str,
-        limit: int = 5,
-        threshold: float = 0.7
+        self, character_id: str, query: str, limit: int = 5, threshold: float = 0.7
     ) -> List[Memory]:
         """関連するメモリを検索する"""
         try:
@@ -397,12 +434,15 @@ class ChromaDBMemoryService(BaseMemoryService):
 
             # ChromaDBで類似度検索
             where: Where = {"character_id": {"$eq": character_id}}
-            result = cast(ChromaResult, self.collection.query(
-                query_embeddings=[embedding],
-                where=where,
-                n_results=limit,
-                include=["metadatas", "documents", "embeddings", "distances"]
-            ))
+            result = cast(
+                ChromaResult,
+                self.collection.query(
+                    query_embeddings=[embedding],
+                    where=where,
+                    n_results=limit,
+                    include=["metadatas", "documents", "embeddings", "distances"],
+                ),
+            )
 
             if not self._validate_query_result(result):
                 return []
@@ -414,32 +454,38 @@ class ChromaDBMemoryService(BaseMemoryService):
                 distance = self._safe_get_from_result(result, "distances", 0, i)
                 if distance is None:
                     continue
-                
+
                 # ChromaDBの距離を類似度に変換（1 - 距離）
                 similarity = 1 - distance
                 if similarity >= threshold:
                     text = self._safe_get_from_result(result, "documents", 0, i)
                     metadata = self._safe_get_from_result(result, "metadatas", 0, i)
                     str_memory_id = self._ensure_str_id(memory_id)
-                    
+
                     if str_memory_id is None or text is None or metadata is None:
                         continue
 
                     # 型チェックの保証
-                    assert isinstance(str_memory_id, str), "str_memory_idはstr型である必要があります"
+                    assert isinstance(str_memory_id, str), (
+                        "str_memory_idはstr型である必要があります"
+                    )
                     assert isinstance(text, str), "textはstr型である必要があります"
-                    assert isinstance(metadata, dict), "metadataはdict型である必要があります"
+                    assert isinstance(metadata, dict), (
+                        "metadataはdict型である必要があります"
+                    )
 
                     try:
                         memory = self._convert_chroma_to_memory(
                             id=str_memory_id,
                             text=text,
                             metadata=cast(Metadata, metadata),
-                            embedding=self._get_embedding(result, i, is_query=True)
+                            embedding=self._get_embedding(result, i, is_query=True),
                         )
                         memories.append(memory)
                     except ValueError as e:
-                        print(f"メモリの変換に失敗しました - ID: {str_memory_id}, エラー: {e}")
+                        print(
+                            f"メモリの変換に失敗しました - ID: {str_memory_id}, エラー: {e}"
+                        )
                         continue
 
             return memories
@@ -452,7 +498,7 @@ class ChromaDBMemoryService(BaseMemoryService):
         self,
         memory_id: str,
         text: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Memory:
         """メモリを更新する"""
         try:
@@ -465,15 +511,17 @@ class ChromaDBMemoryService(BaseMemoryService):
             update_metadata = existing.metadata.copy()
             if metadata:
                 update_metadata.update(metadata)
-            
+
             # ChromaDBのメタデータ形式に変換
-            chroma_metadata = self._convert_metadata_to_chroma({
-                "character_id": existing.character_id,
-                "user_id": existing.user_id,
-                "created_at": existing.created_at.isoformat(),
-                "updated_at": datetime.now().isoformat(),
-                **update_metadata
-            })
+            chroma_metadata = self._convert_metadata_to_chroma(
+                {
+                    "character_id": existing.character_id,
+                    "user_id": existing.user_id,
+                    "created_at": existing.created_at.isoformat(),
+                    "updated_at": datetime.now().isoformat(),
+                    **update_metadata,
+                }
+            )
 
             # テキストが更新される場合は新しい埋め込みベクトルを生成
             update_text = text if text is not None else existing.text
@@ -488,7 +536,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 ids=[memory_id],
                 embeddings=[embedding] if embedding else None,
                 metadatas=[chroma_metadata],
-                documents=[update_text]
+                documents=[update_text],
             )
 
             return Memory(
@@ -499,7 +547,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 embedding=embedding,
                 metadata=update_metadata,
                 created_at=existing.created_at,
-                updated_at=datetime.now()
+                updated_at=datetime.now(),
             )
 
         except Exception as e:
@@ -519,4 +567,4 @@ class ChromaDBMemoryService(BaseMemoryService):
 
         except Exception as e:
             print(f"メモリの削除に失敗しました: {e}")
-            return False 
+            return False

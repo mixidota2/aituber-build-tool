@@ -7,6 +7,7 @@ from ..exceptions import CharacterError
 from ..models.character import Character, Persona, PersonalityTrait, Interest
 from .storage.character import FileSystemCharacterStorage
 
+
 class CharacterService:
     """キャラクター管理サービス"""
 
@@ -32,7 +33,7 @@ class CharacterService:
         persona: Persona,
         personality_traits: Optional[List[PersonalityTrait]] = None,
         interests: Optional[List[Interest]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Character:
         """新しいキャラクターを作成"""
         try:
@@ -44,7 +45,7 @@ class CharacterService:
                 persona=persona,
                 personality_traits=personality_traits or [],
                 interests=interests or [],
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
             self.characters[character.id] = character
             return character
@@ -79,4 +80,4 @@ class CharacterService:
 
     def load_character(self, character_id: str) -> Character:
         """キャラクターをロード"""
-        return self.get_character(character_id) 
+        return self.get_character(character_id)

@@ -20,16 +20,20 @@ class OpenAIService(BaseLLMService):
         self.config = config
         self.client = AsyncOpenAI(
             api_key=self.config.integrations.openai.api_key,
-            organization=self.config.integrations.openai.organization
+            organization=self.config.integrations.openai.organization,
         )
 
-    def _convert_messages(self, messages: List[Message]) -> List[ChatCompletionMessageParam]:
+    def _convert_messages(
+        self, messages: List[Message]
+    ) -> List[ChatCompletionMessageParam]:
         """メッセージをOpenAI APIの形式に変換"""
         converted_messages = []
         for msg in messages:
             message: ChatCompletionMessageParam = {
-                "role": cast(Literal["system", "user", "assistant", "tool", "function"], msg.role),
-                "content": msg.content
+                "role": cast(
+                    Literal["system", "user", "assistant", "tool", "function"], msg.role
+                ),
+                "content": msg.content,
             }
             if msg.name:
                 message["name"] = msg.name
@@ -45,7 +49,7 @@ class OpenAIService(BaseLLMService):
             max_tokens=self.config.integrations.openai.max_tokens,
             presence_penalty=self.config.integrations.openai.presence_penalty,
             frequency_penalty=self.config.integrations.openai.frequency_penalty,
-            **kwargs
+            **kwargs,
         )
         content = cast(ChatCompletion, response).choices[0].message.content
         if content is None:
@@ -57,16 +61,18 @@ class OpenAIService(BaseLLMService):
         system_template: str,
         human_template: str,
         variables: Dict[str, Any],
-        **kwargs
+        **kwargs,
     ) -> str:
         """テンプレートを使用したテキスト生成"""
         messages = [
             Message(role="system", content=system_template.format(**variables)),
-            Message(role="user", content=human_template.format(**variables))
+            Message(role="user", content=human_template.format(**variables)),
         ]
         return await self.generate(messages, **kwargs)
 
-    async def generate_stream(self, messages: List[Message], **kwargs) -> AsyncGenerator[str, None]:
+    async def generate_stream(
+        self, messages: List[Message], **kwargs
+    ) -> AsyncGenerator[str, None]:
         """ストリーミングテキスト生成"""
         stream = await self.client.chat.completions.create(
             model=self.config.integrations.openai.model,
@@ -76,7 +82,7 @@ class OpenAIService(BaseLLMService):
             presence_penalty=self.config.integrations.openai.presence_penalty,
             frequency_penalty=self.config.integrations.openai.frequency_penalty,
             stream=True,
-            **kwargs
+            **kwargs,
         )
         async for chunk in stream:
             if chunk.choices[0].delta.content is not None:
@@ -85,8 +91,6 @@ class OpenAIService(BaseLLMService):
     async def get_embeddings(self, texts: List[str], **kwargs) -> List[List[float]]:
         """テキストの埋め込みベクトルを取得"""
         response = await self.client.embeddings.create(
-            model=self.config.integrations.openai.embedding_model,
-            input=texts,
-            **kwargs
+            model=self.config.integrations.openai.embedding_model, input=texts, **kwargs
         )
-        return [embedding.embedding for embedding in response.data] 
+        return [embedding.embedding for embedding in response.data]

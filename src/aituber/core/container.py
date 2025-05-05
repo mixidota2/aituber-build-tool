@@ -13,11 +13,11 @@ from .services.storage.character import FileSystemCharacterStorage
 
 class ServiceContainer:
     """シンプルなサービスコンテナ"""
-    
+
     def __init__(self, config: AITuberConfig):
         """
         サービスコンテナの初期化
-        
+
         Args:
             config: アプリケーション設定
         """
@@ -47,7 +47,9 @@ class ServiceContainer:
     def character_storage(self) -> FileSystemCharacterStorage:
         """キャラクターストレージのシングルトンインスタンスを取得"""
         if self._character_storage is None:
-            self._character_storage = FileSystemCharacterStorage(str(self.config.character.characters_dir))
+            self._character_storage = FileSystemCharacterStorage(
+                str(self.config.character.characters_dir)
+            )
         return self._character_storage
 
     @property
@@ -55,8 +57,7 @@ class ServiceContainer:
         """メモリサービスのシングルトンインスタンスを取得"""
         if self._memory_service is None:
             self._memory_service = ChromaDBMemoryService(
-                config=self.config,
-                llm_service=self.llm_service
+                config=self.config, llm_service=self.llm_service
             )
         return self._memory_service
 
@@ -65,8 +66,7 @@ class ServiceContainer:
         """キャラクターサービスのシングルトンインスタンスを取得"""
         if self._character_service is None:
             self._character_service = CharacterService(
-                config=self.config,
-                storage=self.character_storage
+                config=self.config, storage=self.character_storage
             )
         return self._character_service
 
@@ -78,6 +78,6 @@ class ServiceContainer:
                 config=self.config,
                 character_service=self.character_service,
                 memory_service=self.memory_service,
-                llm_service=self.llm_service
+                llm_service=self.llm_service,
             )
-        return self._conversation_service 
+        return self._conversation_service

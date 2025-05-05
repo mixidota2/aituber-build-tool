@@ -43,7 +43,7 @@ class LocalStorageService(BaseStorageService):
         self,
         file_path: Path,
         content: bytes | str | BinaryIO,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """ファイルを保存する"""
         # 絶対パスの解決
@@ -53,7 +53,7 @@ class LocalStorageService(BaseStorageService):
         # ファイルの保存
         mode = "wb" if isinstance(content, bytes) else "w"
         encoding = None if isinstance(content, bytes) else "utf-8"
-        
+
         if isinstance(content, (bytes, str)):
             with open(abs_path, mode=mode, encoding=encoding) as f:
                 f.write(content)
@@ -66,11 +66,16 @@ class LocalStorageService(BaseStorageService):
             metadata_path = self._get_metadata_path(file_path)
             self._ensure_metadata_directory(metadata_path)
             with open(metadata_path, "w", encoding="utf-8") as f:
-                json.dump({
-                    **metadata,
-                    "created_at": datetime.now().isoformat(),
-                    "updated_at": datetime.now().isoformat()
-                }, f, ensure_ascii=False, indent=2)
+                json.dump(
+                    {
+                        **metadata,
+                        "created_at": datetime.now().isoformat(),
+                        "updated_at": datetime.now().isoformat(),
+                    },
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
+                )
 
         return str(abs_path)
 
@@ -98,9 +103,7 @@ class LocalStorageService(BaseStorageService):
             return False
 
     async def list_files(
-        self,
-        directory: Path,
-        pattern: Optional[str] = None
+        self, directory: Path, pattern: Optional[str] = None
     ) -> List[Path]:
         """ファイル一覧を取得する"""
         abs_path = self.base_path / directory
@@ -122,23 +125,21 @@ class LocalStorageService(BaseStorageService):
         if not metadata_path.exists():
             return {
                 "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat()
+                "updated_at": datetime.now().isoformat(),
             }
 
         with open(metadata_path, "r", encoding="utf-8") as f:
             return cast(Dict[str, Any], json.load(f))
 
     async def update_metadata(
-        self,
-        file_path: Path,
-        metadata: Dict[str, Any]
+        self, file_path: Path, metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         """ファイルのメタデータを更新する"""
         current_metadata = await self.get_metadata(file_path)
         updated_metadata = {
             **current_metadata,
             **metadata,
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.now().isoformat(),
         }
 
         metadata_path = self._get_metadata_path(file_path)
@@ -146,4 +147,4 @@ class LocalStorageService(BaseStorageService):
         with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(updated_metadata, f, ensure_ascii=False, indent=2)
 
-        return updated_metadata 
+        return updated_metadata

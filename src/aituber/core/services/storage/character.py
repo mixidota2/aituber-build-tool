@@ -37,7 +37,9 @@ class FileSystemCharacterStorage:
         try:
             file_path = self._get_character_path(character.id)
             with open(file_path, "w", encoding="utf-8") as f:
-                yaml.dump(character.model_dump(), f, allow_unicode=True, sort_keys=False)
+                yaml.dump(
+                    character.model_dump(), f, allow_unicode=True, sort_keys=False
+                )
         except Exception as e:
             raise CharacterError(f"キャラクターの保存に失敗しました: {e}")
 
@@ -45,7 +47,9 @@ class FileSystemCharacterStorage:
         """キャラクターを読み込む"""
         file_path = self._get_character_path(character_id)
         if not file_path.exists():
-            raise CharacterError(f"キャラクターファイルが見つかりません: {character_id}")
+            raise CharacterError(
+                f"キャラクターファイルが見つかりません: {character_id}"
+            )
 
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -68,10 +72,7 @@ class FileSystemCharacterStorage:
 
     def list_characters(self) -> List[str]:
         """キャラクターIDの一覧を取得"""
-        return [
-            file_path.stem
-            for file_path in self.base_dir.glob("*.yaml")
-        ]
+        return [file_path.stem for file_path in self.base_dir.glob("*.yaml")]
 
     def delete(self, character_id: str) -> None:
         """キャラクターを削除"""
@@ -80,4 +81,4 @@ class FileSystemCharacterStorage:
             try:
                 os.remove(file_path)
             except Exception as e:
-                raise CharacterError(f"キャラクターの削除に失敗しました: {e}") 
+                raise CharacterError(f"キャラクターの削除に失敗しました: {e}")

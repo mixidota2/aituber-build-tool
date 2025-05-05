@@ -56,4 +56,39 @@
   - レイテンシの最小化
   - CPU/メモリ使用量の最適化
   - エラー時の自動リカバリ
-  - 音声品質とパフォーマンスのバランス調整 
+  - 音声品質とパフォーマンスのバランス調整
+
+## Voicevox連携TTS機能 実装タスク
+
+1. キャラクターYAMLのサンプル作成
+    - `data/characters/{character_id}.yaml`にstyle_idを含むサンプルを作成
+
+2. キャラクターモデルの拡張
+    - `src/aituber/core/models/character.py`
+      - Voicevox用style_idをPydanticモデルに追加
+      - YAMLからの読み込み対応
+
+3. TTSサービスの実装
+    - `src/aituber/core/services/tts_service.py`
+      - style_idを利用してVoicevoxで音声合成
+      - `synthesize(text: str, character: Character) -> bytes`メソッド
+
+4. APIの実装
+    - `src/aituber/api/api.py`
+      - FastAPIでエンドポイントを1つ用意
+      - リクエストパラメータでテキスト/音声切り替え
+      - character_idでキャラクターYAMLを読み込み
+
+5. CLIの実装
+    - `src/aituber/interface/cli.py`（`main.py`をリネーム）
+      - typerでコマンド実装
+      - `--response-type`でテキスト/音声切り替え
+      - `--character-id`でキャラクター指定
+
+---
+
+### 設計メモ
+
+- キャラクターごとのVoicevoxパラメータはYAMLで管理し、現状はstyle_idのみ必須
+- 今後、話速・音高などのパラメータも拡張可能
+- API/CLIともに1ファイルでテキスト/音声切り替えに対応 

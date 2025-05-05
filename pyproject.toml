@@ -15,6 +15,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "typer>=0.15.2",
     "voicevox-core",
+    "fastapi>=0.115.9",
 ]
 
 [project.scripts]
