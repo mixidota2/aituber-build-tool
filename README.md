@@ -135,7 +135,3 @@ uv run python -m aituber chat --character railly
                 ↓              ↑          ↑           ↓
          [音声認識(STT)]        └──────[統合モジュール]─────┘
 ```
-
-## ライセンス
-
-このプロジェクトはMITライセンスの下で公開されています。
