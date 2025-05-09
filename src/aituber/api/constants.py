@@ -1,1 +1,1 @@
-CHARACTER_DIR = "data/characters" 
+CHARACTER_DIR = "data/characters"

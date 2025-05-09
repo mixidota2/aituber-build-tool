@@ -4,11 +4,11 @@ import os
 from typing import Optional
 
 from .core.config import ConfigManager
-from .core.container import Container
+from .core.container import ServiceContainer
 from .core.services.character import CharacterService
-from .core.services.memory import MemoryService
 from .core.services.conversation import ConversationService
-from .core.services.llm import LLMService
+from .core.services.llm.openai import OpenAIService
+from .core.services.memory.chromadb import ChromaDBMemoryService
 
 
 class AITuberApp:
@@ -23,10 +23,10 @@ class AITuberApp:
         """
         self.config_manager = ConfigManager(config_path)
         self.config = self.config_manager.load_config()
-        self._container = Container(self.config)
+        self._container = ServiceContainer(self.config)
 
     @property
-    def llm_service(self) -> LLMService:
+    def llm_service(self) -> OpenAIService:
         """LLMサービスを取得する"""
         return self._container.llm_service
 
@@ -36,7 +36,7 @@ class AITuberApp:
         return self._container.character_service
 
     @property
-    def memory_service(self) -> MemoryService:
+    def memory_service(self) -> ChromaDBMemoryService:
         """メモリサービスを取得する"""
         return self._container.memory_service
 

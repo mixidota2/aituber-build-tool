@@ -248,7 +248,7 @@ def test_character_load_nonexistent(character_storage):
 def test_character_save_with_invalid_data(character_storage):
     """無効なデータでのキャラクター保存テスト."""
     try:
-        invalid_character = Character(
+        Character(
             id="",  # 空のID
             name="テストキャラクター",
             description="テスト用キャラクター",
