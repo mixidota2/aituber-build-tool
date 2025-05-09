@@ -1,6 +1,6 @@
 """OpenAIサービスの実装"""
 
-from typing import List, Dict, Any, AsyncGenerator, cast, Literal
+from typing import List, Dict, Any, AsyncGenerator, cast, Literal, Union
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 
@@ -27,17 +27,26 @@ class OpenAIService(BaseLLMService):
         self, messages: List[Message]
     ) -> List[ChatCompletionMessageParam]:
         """メッセージをOpenAI APIの形式に変換"""
-        converted_messages = []
+        converted_messages: List[ChatCompletionMessageParam] = []
         for msg in messages:
-            message: ChatCompletionMessageParam = {
-                "role": cast(
-                    Literal["system", "user", "assistant", "tool", "function"], msg.role
-                ),
+            role_type = cast(
+                Literal["system", "user", "assistant", "tool", "function"], 
+                msg.role
+            )
+            
+            base_message: Dict[str, Union[str, None]] = {
+                "role": role_type,
                 "content": msg.content,
             }
-            if msg.name:
-                message["name"] = msg.name
+            
+            # toolとfunctionのロールの場合のみnameを追加
+            if msg.name and role_type in ["tool", "function"]:
+                base_message["name"] = msg.name
+            
+            # 型キャストで適切なChatCompletionMessageParamに変換
+            message = cast(ChatCompletionMessageParam, base_message)
             converted_messages.append(message)
+            
         return converted_messages
 
     async def generate(self, messages: List[Message], **kwargs) -> str:
@@ -74,19 +83,22 @@ class OpenAIService(BaseLLMService):
         self, messages: List[Message], **kwargs
     ) -> AsyncGenerator[str, None]:
         """ストリーミングテキスト生成"""
-        stream = await self.client.chat.completions.create(
-            model=self.config.integrations.openai.model,
-            messages=self._convert_messages(messages),
-            temperature=self.config.integrations.openai.temperature,
-            max_tokens=self.config.integrations.openai.max_tokens,
-            presence_penalty=self.config.integrations.openai.presence_penalty,
-            frequency_penalty=self.config.integrations.openai.frequency_penalty,
-            stream=True,
-            **kwargs,
-        )
-        async for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
-                yield chunk.choices[0].delta.content
+        async def stream_generator() -> AsyncGenerator[str, None]:
+            stream = await self.client.chat.completions.create(
+                model=self.config.integrations.openai.model,
+                messages=self._convert_messages(messages),
+                temperature=self.config.integrations.openai.temperature,
+                max_tokens=self.config.integrations.openai.max_tokens,
+                presence_penalty=self.config.integrations.openai.presence_penalty,
+                frequency_penalty=self.config.integrations.openai.frequency_penalty,
+                stream=True,
+                **kwargs,
+            )
+            async for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    yield chunk.choices[0].delta.content
+        
+        return stream_generator()
 
     async def get_embeddings(self, texts: List[str], **kwargs) -> List[List[float]]:
         """テキストの埋め込みベクトルを取得"""
