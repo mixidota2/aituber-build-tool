@@ -11,6 +11,7 @@
 - キャラクター設定の管理システム
 - OpenAI APIを活用したLLM連携
 - ストリーミング応答によるリアルタイムな対話
+- ChromaDBを使用したベクトル記憶管理
 
 ## インストール方法
 
@@ -69,9 +70,13 @@ persona:
 personality_traits:
   - name: 性格特性1
     description: 性格特性の説明
+    score: 0.8
 interests:
   - name: 興味1
     description: 興味の説明
+    level: 0.9
+voicevox:
+  style_id: 1  # VOICEVOXのスタイルID（オプション）
 ```
 
 ファイルを `data/characters/` ディレクトリに配置してください。
@@ -135,3 +140,19 @@ uv run python -m aituber chat --character railly
                 ↓              ↑          ↑           ↓
          [音声認識(STT)]        └──────[統合モジュール]─────┘
 ```
+
+### コア構成要素
+
+- **ServiceContainer**: 依存性注入コンテナとしての役割を果たし、各サービスのシングルトンインスタンスを管理
+- **CharacterService**: キャラクター設定の管理を担当
+- **ConversationService**: 会話の処理と記憶の管理を担当
+- **OpenAIService**: OpenAI APIとの通信を抽象化
+- **ChromaDBMemoryService**: 会話コンテキストの長期記憶をベクトルDBで管理
+
+### 拡張性
+
+このフレームワークは拡張性を重視して設計されています：
+
+- 各サービスは明確なインターフェースを持ち、容易に置き換え可能
+- 新しいキャラクターは設定ファイルを追加するだけで利用可能
+- 将来的にはWeb API、音声認識、Live2D/3Dモデルなどの統合も計画
