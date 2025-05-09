@@ -40,11 +40,11 @@
   - 感情表現のバリエーション実装
 
 ## 音声機能
-- [ ] 音声合成システムの統合
-  - 音声合成エンジンの選定と実装
-  - 感情に応じた音声パラメータの調整
-  - リアルタイム音声生成の最適化
-  - 音声キャッシュシステムの実装
+- [x] 音声合成システムの統合
+  - [x] 音声合成エンジン（Voicevox）の選定と実装
+  - [ ] 感情に応じた音声パラメータの調整
+  - [ ] リアルタイム音声生成の最適化
+  - [ ] 音声キャッシュシステムの実装
 - [ ] 音声認識システムの統合
   - 音声認識エンジンの選定と実装
   - ノイズ処理と音声品質の最適化
@@ -58,32 +58,30 @@
   - エラー時の自動リカバリ
   - 音声品質とパフォーマンスのバランス調整
 
+## TTS最適化タスク
+- [ ] TTSモジュールの最適化
+  - 現状は全モデルを一度にロードするが、style_idごとに初回呼び出し時のみロードする仕組みに変更
+  - キャッシュ管理の実装（メモリ使用量の制限など）
+  - 使用頻度の低いモデルのアンロード機構
+
 ## Voicevox連携TTS機能 実装タスク
 
-1. キャラクターYAMLのサンプル作成
-    - `data/characters/{character_id}.yaml`にstyle_idを含むサンプルを作成
-
-2. キャラクターモデルの拡張
-    - `src/aituber/core/models/character.py`
-      - Voicevox用style_idをPydanticモデルに追加
-      - YAMLからの読み込み対応
-
-3. TTSサービスの実装
-    - `src/aituber/core/services/tts_service.py`
-      - style_idを利用してVoicevoxで音声合成
-      - `synthesize(text: str, character: Character) -> bytes`メソッド
-
-4. APIの実装
+4. [x] APIの実装
     - `src/aituber/api/api.py`
-      - FastAPIでエンドポイントを1つ用意
-      - リクエストパラメータでテキスト/音声切り替え
-      - character_idでキャラクターYAMLを読み込み
+      - [x] FastAPIでエンドポイントを1つ用意
+      - [x] リクエストパラメータでテキスト/音声切り替え
+      - [x] character_idでキャラクターYAMLを読み込み
 
-5. CLIの実装
+5. [x] CLIの実装
     - `src/aituber/interface/cli.py`（`main.py`をリネーム）
-      - typerでコマンド実装
-      - `--response-type`でテキスト/音声切り替え
-      - `--character-id`でキャラクター指定
+      - [x] typerでコマンド実装
+      - [x] `--response-type`でテキスト/音声切り替え
+      - [x] `--character-id`でキャラクター指定
+
+6. [x] LLMとの連携
+    - [x] APIにおいてダミー応答ではなく実際のLLM応答を返却
+    - [x] CLIでもLLM応答を利用
+    - [x] 会話コンテキストの維持
 
 ---
 
