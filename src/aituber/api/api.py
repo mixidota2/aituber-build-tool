@@ -77,7 +77,10 @@ async def chat(req: ChatRequest):
         tuber_app = await AppFactory.get_app()
     
     # キャラクター取得
-    character = await get_character_safe(tuber_app, req.character_id)
+    try:
+        character = await get_character_safe(tuber_app, req.character_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="キャラクターが見つかりません")
     
     # 会話サービス取得
     conversation_service = tuber_app.conversation_service
@@ -132,7 +135,10 @@ async def stream_chat(req: StreamChatRequest):
     if tuber_app is None:
         tuber_app = await AppFactory.get_app()
     
-    _ = await get_character_safe(tuber_app, req.character_id)  # キャラクター存在確認
+    try:
+        _ = await get_character_safe(tuber_app, req.character_id)  # キャラクター存在確認
+    except Exception:
+        raise HTTPException(status_code=404, detail="キャラクターが見つかりません")
     conversation_service = tuber_app.conversation_service
     
     conversation = conversation_service.get_or_create_conversation(
@@ -165,7 +171,10 @@ async def voice_chat(
     # 音声をテキストに変換（実装は省略、プレースホルダー）
     transcribed_text = "こんにちは"  # 実際にはSTTサービスを使用
     
-    character = await get_character_safe(tuber_app, character_id)
+    try:
+        character = await get_character_safe(tuber_app, character_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="キャラクターが見つかりません")
     conversation_service = tuber_app.conversation_service
     
     conversation = conversation_service.get_or_create_conversation(
@@ -225,7 +234,10 @@ async def text_to_speech_chat(req: TextToSpeechRequest):
     if tuber_app is None:
         tuber_app = await AppFactory.get_app()
     
-    character = await get_character_safe(tuber_app, req.character_id)
+    try:
+        character = await get_character_safe(tuber_app, req.character_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="キャラクターが見つかりません")
     conversation_service = tuber_app.conversation_service
     
     conversation = conversation_service.get_or_create_conversation(

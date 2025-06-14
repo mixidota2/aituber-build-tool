@@ -44,3 +44,6 @@ dev = [
     "aiofiles>=24.1.0",
     "types-aiofiles>=24.1.0.20250606",
 ]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"

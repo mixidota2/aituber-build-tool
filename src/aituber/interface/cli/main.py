@@ -164,7 +164,7 @@ def chat(
             # キャラクターの読み込み
             character_service: CharacterService = app_instance.character_service
             try:
-                character = character_service.load_character(character_id)
+                character = await character_service.load_character(character_id)
             except Exception as e:
                 typer.echo(
                     f"エラー: キャラクター '{character_id}' の読み込みに失敗しました: {e}"

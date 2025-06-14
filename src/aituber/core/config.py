@@ -5,7 +5,7 @@ import re
 import yaml
 import logging
 from typing import Dict, Any, Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,8 @@ class OpenAIConfig(BaseModel):
     presence_penalty: float = 0.0
     frequency_penalty: float = 0.0
 
-    @validator('api_key')
+    @field_validator('api_key')
+    @classmethod
     def validate_api_key(cls, v: str) -> str:
         """API key validation - must not be empty in production"""
         if not v or v.strip() == "":
