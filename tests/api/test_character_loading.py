@@ -7,7 +7,8 @@ import yaml
 from pathlib import Path
 from unittest.mock import patch, AsyncMock, Mock
 
-from aituber.api.api import get_character, get_character_dir, list_characters
+from aituber.core.character_utils import get_character_safe, CharacterUtils
+from aituber.api.api import list_characters
 from aituber.core.models.character import Character
 
 
@@ -64,22 +65,24 @@ def temp_character_dir(test_character_data):
 
 @pytest.mark.asyncio
 async def test_get_character_dir_with_app():
-    """get_character_dir関数のテスト（アプリ設定あり）"""
+    """CharacterUtils.get_character_dir関数のテスト（アプリ設定あり）"""
     mock_app = Mock()
     mock_app.config.app.data_dir = "/test/data"
     mock_app.config.character.characters_dir = "characters"
     
-    with patch("aituber.api.api.tuber_app", mock_app):
-        result = get_character_dir()
-        assert result == "/test/data/characters"
+    result = CharacterUtils.get_character_dir(mock_app)
+    assert result == "/test/data/characters"
 
 
 def test_get_character_dir_fallback():
-    """get_character_dir関数のテスト（フォールバック）"""
-    with patch("aituber.api.api.tuber_app", None):
-        result = get_character_dir()
-        expected = os.path.join(os.getcwd(), "data", "characters")
-        assert result == expected
+    """CharacterUtils.get_character_dir関数のテスト（フォールバック）"""
+    mock_app = Mock()
+    # config属性にアクセスするとExceptionが発生する設定
+    mock_app.config = Mock(side_effect=Exception("Config error"))
+    
+    result = CharacterUtils.get_character_dir(mock_app)
+    expected = str(Path.cwd() / "data" / "characters")
+    assert result == expected
 
 
 @pytest.mark.asyncio
@@ -93,13 +96,10 @@ async def test_get_character_with_service(test_character_data):
     mock_character_service.load_character = AsyncMock(return_value=mock_character)
     mock_app.character_service = mock_character_service
     
-    with patch("aituber.api.api.tuber_app", mock_app), \
-         patch("aituber.api.api.get_app", return_value=mock_app):
-        
-        result = await get_character("test_char")
-        assert result.id == "test_char"
-        assert result.name == "テストキャラ"
-        mock_character_service.load_character.assert_called_once_with("test_char")
+    result = await get_character_safe(mock_app, "test_char")
+    assert result.id == "test_char"
+    assert result.name == "テストキャラ"
+    mock_character_service.load_character.assert_called_once_with("test_char")
 
 
 @pytest.mark.asyncio
@@ -112,11 +112,8 @@ async def test_get_character_fallback(temp_character_dir, test_character_data):
     mock_character_service.load_character = AsyncMock(side_effect=Exception("Service error"))
     mock_app.character_service = mock_character_service
     
-    with patch("aituber.api.api.tuber_app", mock_app), \
-         patch("aituber.api.api.get_app", return_value=mock_app), \
-         patch("aituber.api.api.get_character_dir", return_value=temp_character_dir):
-        
-        result = await get_character("test_char")
+    with patch.object(CharacterUtils, "get_character_dir", return_value=temp_character_dir):
+        result = await get_character_safe(mock_app, "test_char")
         assert result.id == "test_char"
         assert result.name == "テストキャラ"
 
@@ -131,16 +128,12 @@ async def test_get_character_not_found():
     mock_character_service.load_character = AsyncMock(side_effect=Exception("Not found"))
     mock_app.character_service = mock_character_service
     
-    with patch("aituber.api.api.tuber_app", mock_app), \
-         patch("aituber.api.api.get_app", return_value=mock_app), \
-         patch("aituber.api.api.get_character_dir", return_value="/nonexistent"):
+    with patch.object(CharacterUtils, "get_character_dir", return_value="/nonexistent"):
+        from aituber.core.exceptions import CharacterError
+        with pytest.raises(CharacterError) as exc_info:
+            await get_character_safe(mock_app, "nonexistent")
         
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException) as exc_info:
-            await get_character("nonexistent")
-        
-        assert exc_info.value.status_code == 404
-        assert "キャラクターが見つかりません" in str(exc_info.value.detail)
+        assert "Character file not found" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -175,7 +168,7 @@ async def test_list_characters_with_service():
     mock_app.character_service = mock_character_service
     
     with patch("aituber.api.api.tuber_app", mock_app), \
-         patch("aituber.api.api.get_app", return_value=mock_app):
+         patch("aituber.core.app_factory.AppFactory.get_app", return_value=mock_app):
         
         result = await list_characters()
         
@@ -196,8 +189,8 @@ async def test_list_characters_fallback(temp_character_dir):
     mock_app.character_service = mock_character_service
     
     with patch("aituber.api.api.tuber_app", mock_app), \
-         patch("aituber.api.api.get_app", return_value=mock_app), \
-         patch("aituber.api.api.get_character_dir", return_value=temp_character_dir):
+         patch("aituber.core.app_factory.AppFactory.get_app", return_value=mock_app), \
+         patch.object(CharacterUtils, "get_character_dir", return_value=temp_character_dir):
         
         result = await list_characters()
         
@@ -218,8 +211,8 @@ async def test_list_characters_empty_directory():
     
     with tempfile.TemporaryDirectory() as tmp_dir:
         with patch("aituber.api.api.tuber_app", mock_app), \
-             patch("aituber.api.api.get_app", return_value=mock_app), \
-             patch("aituber.api.api.get_character_dir", return_value=tmp_dir):
+             patch("aituber.core.app_factory.AppFactory.get_app", return_value=mock_app), \
+             patch.object(CharacterUtils, "get_character_dir", return_value=tmp_dir):
             
             result = await list_characters()
             assert len(result.characters) == 0

@@ -45,6 +45,11 @@ class AITuberApp:
         """会話サービスを取得する"""
         return self._container.conversation_service
 
+    @property
+    def tts_service(self):
+        """TTSサービスを取得する"""
+        return self._container.tts_service
+
     async def initialize(self) -> None:
         """アプリケーションの初期化"""
         try:

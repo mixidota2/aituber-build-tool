@@ -9,6 +9,7 @@ from .services.storage.local import LocalStorageService
 from .services.character import CharacterService
 from .services.conversation import ConversationService
 from .services.storage.character import FileSystemCharacterStorage
+from .services.tts_service import TTSSyncService
 
 
 class ServiceContainer:
@@ -28,6 +29,7 @@ class ServiceContainer:
         self._character_service: Optional[CharacterService] = None
         self._conversation_service: Optional[ConversationService] = None
         self._character_storage: Optional[FileSystemCharacterStorage] = None
+        self._tts_service: Optional[TTSSyncService] = None
 
     @property
     def llm_service(self) -> OpenAIService:
@@ -87,3 +89,10 @@ class ServiceContainer:
                 llm_service=self.llm_service,
             )
         return self._conversation_service
+
+    @property
+    def tts_service(self) -> TTSSyncService:
+        """TTSサービスのシングルトンインスタンスを取得"""
+        if self._tts_service is None:
+            self._tts_service = TTSSyncService()
+        return self._tts_service

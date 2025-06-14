@@ -9,7 +9,7 @@ import yaml
 import uvicorn
 
 from aituber.core.config import ConfigManager
-from aituber.app import get_app
+from aituber.core.app_factory import AppFactory
 from aituber.core.services.character import (
     Character,
     Persona,
@@ -159,7 +159,7 @@ def chat(
     async def _chat():
         try:
             # アプリケーション初期化
-            app_instance = await get_app(config_path)
+            app_instance = await AppFactory.get_app(config_path)
 
             # キャラクターの読み込み
             character_service: CharacterService = app_instance.character_service
@@ -228,7 +228,7 @@ def list_characters(
     async def _list_characters():
         try:
             # アプリケーション初期化
-            app_instance = await get_app(config_path)
+            app_instance = await AppFactory.get_app(config_path)
 
             # キャラクターマネージャー
             character_service: CharacterService = app_instance.character_service

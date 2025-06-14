@@ -2,13 +2,12 @@ from fastapi import FastAPI, HTTPException, Response, File, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Literal, Dict, List, Optional, AsyncGenerator
-import yaml
 import os
 import json
 from contextlib import asynccontextmanager
 from aituber.core.models.character import Character
-from aituber.core.services.tts_service import TTSSyncService
-from aituber.app import get_app
+from aituber.core.app_factory import AppFactory
+from aituber.core.character_utils import get_character_safe, list_characters_safe
 
 # FastAPIのlifespanでアプリケーション初期化
 tuber_app = None
@@ -17,14 +16,11 @@ tuber_app = None
 @asynccontextmanager
 async def lifespan(app):
     global tuber_app
-    tuber_app = await get_app()
+    tuber_app = await AppFactory.get_app()
     yield
 
 
 app = FastAPI(lifespan=lifespan)
-
-# TTSサービスは同期版を利用（必要に応じて非同期版も追加可）
-tts_service = TTSSyncService()
 
 # メモリ上の会話履歴: {conversation_id: List[Dict{"role": str, "content": str}]}
 conversations: Dict[str, List[Dict[str, str]]] = {}
@@ -78,10 +74,10 @@ class TextToSpeechRequest(BaseModel):
 async def chat(req: ChatRequest):
     global tuber_app
     if tuber_app is None:
-        tuber_app = await get_app()
+        tuber_app = await AppFactory.get_app()
     
     # キャラクター取得
-    character = await get_character(req.character_id)
+    character = await get_character_safe(tuber_app, req.character_id)
     
     # 会話サービス取得
     conversation_service = tuber_app.conversation_service
@@ -115,14 +111,14 @@ async def chat(req: ChatRequest):
     
     if req.response_type == "audio":
         try:
-            wav = tts_service.synthesize(reply, character)
+            wav = tuber_app.tts_service.synthesize(reply, character)
             headers = {"X-Conversation-Id": conversation.conversation_id}
             return Response(content=wav, media_type="audio/wav", headers=headers)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"TTS合成エラー: {e}")
     elif req.response_type == "both":
         try:
-            wav = tts_service.synthesize(reply, character)
+            wav = tuber_app.tts_service.synthesize(reply, character)
             response.audio_url = f"/audio/{conversation.conversation_id}/latest"
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"TTS合成エラー: {e}")
@@ -134,9 +130,9 @@ async def chat(req: ChatRequest):
 async def stream_chat(req: StreamChatRequest):
     global tuber_app
     if tuber_app is None:
-        tuber_app = await get_app()
+        tuber_app = await AppFactory.get_app()
     
-    _ = await get_character(req.character_id)  # キャラクター存在確認
+    _ = await get_character_safe(tuber_app, req.character_id)  # キャラクター存在確認
     conversation_service = tuber_app.conversation_service
     
     conversation = conversation_service.get_or_create_conversation(
@@ -160,7 +156,7 @@ async def voice_chat(
 ):
     global tuber_app
     if tuber_app is None:
-        tuber_app = await get_app()
+        tuber_app = await AppFactory.get_app()
     
     # 音声ファイルの処理（今回は簡略化）
     if not audio.content_type or not audio.content_type.startswith("audio/"):
@@ -169,7 +165,7 @@ async def voice_chat(
     # 音声をテキストに変換（実装は省略、プレースホルダー）
     transcribed_text = "こんにちは"  # 実際にはSTTサービスを使用
     
-    character = await get_character(character_id)
+    character = await get_character_safe(tuber_app, character_id)
     conversation_service = tuber_app.conversation_service
     
     conversation = conversation_service.get_or_create_conversation(
@@ -182,7 +178,7 @@ async def voice_chat(
         reply = await conversation_service.process_message(
             conversation.conversation_id, transcribed_text
         )
-        wav = tts_service.synthesize(reply, character)
+        wav = tuber_app.tts_service.synthesize(reply, character)
         headers = {"X-Conversation-Id": conversation.conversation_id}
         return Response(content=wav, media_type="audio/wav", headers=headers)
     except Exception as e:
@@ -193,40 +189,10 @@ async def voice_chat(
 async def list_characters():
     global tuber_app
     if tuber_app is None:
-        tuber_app = await get_app()
+        tuber_app = await AppFactory.get_app()
     
-    try:
-        character_service = tuber_app.character_service
-        characters_list = character_service.list_characters()
-        
-        characters = []
-        for character in characters_list:
-            characters.append({
-                "id": character.id,
-                "name": character.name,
-                "description": character.description[:100] + "..." if len(character.description) > 100 else character.description
-            })
-        return CharacterListResponse(characters=characters)
-    except Exception:
-        # フォールバック: 直接ファイルシステムから読み込み
-        characters = []
-        character_dir = get_character_dir()
-        if os.path.exists(character_dir):
-            for filename in os.listdir(character_dir):
-                if filename.endswith(".yaml"):
-                    char_id = filename[:-5]  # .yamlを除く
-                    char_path = os.path.join(character_dir, filename)
-                    try:
-                        with open(char_path, "r", encoding="utf-8") as f:
-                            char_data = yaml.safe_load(f)
-                        characters.append({
-                            "id": char_id,
-                            "name": char_data.get("name", char_id),
-                            "description": char_data.get("description", "")[:100] + "..."
-                        })
-                    except Exception:
-                        continue
-        return CharacterListResponse(characters=characters)
+    characters = await list_characters_safe(tuber_app)
+    return CharacterListResponse(characters=characters)
 
 
 @app.get("/conversations/{conversation_id}/history", response_model=ConversationHistoryResponse)
@@ -238,7 +204,12 @@ async def get_conversation_history(conversation_id: str):
 @app.get("/debug/character-dir")
 async def debug_character_dir():
     """デバッグ用: キャラクターディレクトリ情報を取得"""
-    character_dir = get_character_dir()
+    global tuber_app
+    if tuber_app is None:
+        tuber_app = await AppFactory.get_app()
+    
+    from aituber.core.character_utils import CharacterUtils
+    character_dir = CharacterUtils.get_character_dir(tuber_app)
     return {
         "character_dir": character_dir,
         "exists": os.path.exists(character_dir),
@@ -252,9 +223,9 @@ async def text_to_speech_chat(req: TextToSpeechRequest):
     """テキスト入力でAIが音声で返答するエンドポイント"""
     global tuber_app
     if tuber_app is None:
-        tuber_app = await get_app()
+        tuber_app = await AppFactory.get_app()
     
-    character = await get_character(req.character_id)
+    character = await get_character_safe(tuber_app, req.character_id)
     conversation_service = tuber_app.conversation_service
     
     conversation = conversation_service.get_or_create_conversation(
@@ -267,7 +238,7 @@ async def text_to_speech_chat(req: TextToSpeechRequest):
         reply = await conversation_service.process_message(
             conversation.conversation_id, req.message
         )
-        wav = tts_service.synthesize(reply, character)
+        wav = tuber_app.tts_service.synthesize(reply, character)
         headers = {
             "X-Conversation-Id": conversation.conversation_id,
             "X-Response-Length": str(len(reply))
@@ -277,41 +248,7 @@ async def text_to_speech_chat(req: TextToSpeechRequest):
         raise HTTPException(status_code=500, detail=f"テキスト→音声変換エラー: {e}")
 
 
-def get_character_dir() -> str:
-    """キャラクターディレクトリのパスを取得"""
-    try:
-        # 設定ファイルからパスを取得
-        global tuber_app
-        if tuber_app and hasattr(tuber_app, 'config'):
-            base_dir = tuber_app.config.app.data_dir
-            char_dir = tuber_app.config.character.characters_dir
-            return os.path.join(base_dir, char_dir)
-    except Exception:
-        pass
-    
-    # フォールバック: 現在のディレクトリからの相対パス
-    return os.path.join(os.getcwd(), "data", "characters")
-
-
-async def get_character(character_id: str) -> Character:
-    global tuber_app
-    if tuber_app is None:
-        tuber_app = await get_app()
-    
-    try:
-        # CharacterServiceを使用してキャラクターを取得
-        character_service = tuber_app.character_service
-        character = await character_service.load_character(character_id)
-        return character
-    except Exception:
-        # フォールバック: 直接ファイルから読み込み
-        character_dir = get_character_dir()
-        char_path = os.path.join(character_dir, f"{character_id}.yaml")
-        if not os.path.exists(char_path):
-            raise HTTPException(status_code=404, detail="キャラクターが見つかりません")
-        with open(char_path, "r", encoding="utf-8") as f:
-            char_data = yaml.safe_load(f)
-        return Character(**char_data)
+# 古いユーティリティ関数は削除され、character_utilsに移行されました
 
 
 async def stream_text_response(conversation_service, conversation_id: str, message: str) -> AsyncGenerator[str, None]:
@@ -334,7 +271,8 @@ async def stream_chat_response(conversation_service, conversation_id: str, messa
         
         if response_type in ["audio", "both"]:
             try:
-                _ = tts_service.synthesize(full_text, character)
+                if tuber_app is not None:
+                    _ = tuber_app.tts_service.synthesize(full_text, character)
                 yield f"data: {json.dumps({'audio': 'generated', 'type': 'audio'})}\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'error': f'TTS合成エラー: {e}', 'type': 'error'})}\n\n"
