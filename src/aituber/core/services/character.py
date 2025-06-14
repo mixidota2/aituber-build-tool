@@ -1,11 +1,14 @@
 """キャラクター管理サービスの実装"""
 
+import logging
 from typing import Dict, Any, List, Optional
 
 from ..config import AITuberConfig
 from ..exceptions import CharacterError
 from ..models.character import Character, Persona, PersonalityTrait, Interest
 from .storage.character import FileSystemCharacterStorage
+
+logger = logging.getLogger(__name__)
 
 
 class CharacterService:
@@ -15,17 +18,20 @@ class CharacterService:
         self.config = config
         self.storage = storage
         self.characters: Dict[str, Character] = {}
-        self._load_characters()
+        # Note: _load_characters is now async and should be called separately
 
-    def _load_characters(self) -> None:
+    async def _load_characters(self) -> None:
         """キャラクターファイルを読み込む"""
         try:
-            characters = self.storage.load_all()
+            characters = await self.storage.load_all()
             self.characters = {character.id: character for character in characters}
+            logger.info(f"Loaded {len(self.characters)} characters successfully")
         except Exception as e:
-            print(f"キャラクターの読み込みに失敗しました: {e}")
+            logger.error(f"Failed to load characters: {e}")
+            # Don't raise exception here to allow graceful degradation
+            self.characters = {}
 
-    def create_character(
+    async def create_character(
         self,
         name: str,
         description: str,
@@ -47,6 +53,7 @@ class CharacterService:
                 interests=interests or [],
                 metadata=metadata or {},
             )
+            await self.storage.save(character)
             self.characters[character.id] = character
             return character
         except Exception as e:
@@ -58,26 +65,34 @@ class CharacterService:
             raise CharacterError(f"キャラクターが見つかりません: {character_id}")
         return self.characters[character_id]
 
-    def update_character(self, character_id: str, updates: Dict[str, Any]) -> Character:
+    async def update_character(self, character_id: str, updates: Dict[str, Any]) -> Character:
         """キャラクター情報を更新"""
         character = self.get_character(character_id)
         try:
             for key, value in updates.items():
                 if hasattr(character, key):
                     setattr(character, key, value)
+            await self.storage.save(character)
             return character
         except Exception as e:
             raise CharacterError(f"キャラクターの更新中にエラーが発生しました: {e}")
 
-    def delete_character(self, character_id: str) -> None:
+    async def delete_character(self, character_id: str) -> None:
         """キャラクターを削除"""
         if character_id in self.characters:
+            self.storage.delete(character_id)
             del self.characters[character_id]
 
     def list_characters(self) -> List[Character]:
         """全キャラクターのリストを取得"""
         return list(self.characters.values())
 
-    def load_character(self, character_id: str) -> Character:
+    async def load_character(self, character_id: str) -> Character:
         """キャラクターをロード"""
+        if character_id not in self.characters:
+            try:
+                character = await self.storage.load(character_id)
+                self.characters[character.id] = character
+            except Exception as e:
+                raise CharacterError(f"Failed to load character {character_id}: {e}")
         return self.get_character(character_id)

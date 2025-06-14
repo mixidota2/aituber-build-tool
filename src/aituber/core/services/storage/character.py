@@ -2,11 +2,15 @@
 
 import os
 import yaml
+import logging
+import aiofiles
 from pathlib import Path
 from typing import List
 
 from ....core.exceptions import CharacterError
 from ....core.models.character import Character
+
+logger = logging.getLogger(__name__)
 
 
 class FileSystemCharacterStorage:
@@ -32,18 +36,19 @@ class FileSystemCharacterStorage:
         """キャラクターファイルのパスを取得"""
         return self.base_dir / f"{character_id}.yaml"
 
-    def save(self, character: Character) -> None:
+    async def save(self, character: Character) -> None:
         """キャラクターを保存"""
         try:
             file_path = self._get_character_path(character.id)
-            with open(file_path, "w", encoding="utf-8") as f:
-                yaml.dump(
-                    character.model_dump(), f, allow_unicode=True, sort_keys=False
+            async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+                content = yaml.dump(
+                    character.model_dump(), allow_unicode=True, sort_keys=False
                 )
+                await f.write(content)
         except Exception as e:
             raise CharacterError(f"キャラクターの保存に失敗しました: {e}")
 
-    def load(self, character_id: str) -> Character:
+    async def load(self, character_id: str) -> Character:
         """キャラクターを読み込む"""
         file_path = self._get_character_path(character_id)
         if not file_path.exists():
@@ -52,22 +57,24 @@ class FileSystemCharacterStorage:
             )
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+            async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+                content = await f.read()
+                data = yaml.safe_load(content)
                 return Character.model_validate(data)
         except Exception as e:
             raise CharacterError(f"キャラクターの読み込みに失敗しました: {e}")
 
-    def load_all(self) -> List[Character]:
+    async def load_all(self) -> List[Character]:
         """全てのキャラクターを読み込む"""
         characters = []
         for file_path in self.base_dir.glob("*.yaml"):
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    data = yaml.safe_load(f)
+                async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+                    content = await f.read()
+                    data = yaml.safe_load(content)
                     characters.append(Character.model_validate(data))
             except Exception as e:
-                print(f"キャラクターの読み込みに失敗しました ({file_path}): {e}")
+                logger.warning(f"Failed to load character from {file_path}: {e}")
         return characters
 
     def list_characters(self) -> List[str]:

@@ -90,7 +90,8 @@ def character_service(container):
     return container.character_service
 
 
-def test_character_creation():
+@pytest.mark.asyncio
+async def test_character_creation():
     """キャラクター作成のテスト."""
     character = Character(
         id="test_char",
@@ -119,7 +120,8 @@ def test_character_creation():
     assert character.persona.speech_style == "丁寧な口調"
 
 
-def test_character_validation():
+@pytest.mark.asyncio
+async def test_character_validation():
     """キャラクターバリデーションのテスト."""
     with pytest.raises(ValidationError):
         Character(
@@ -131,13 +133,14 @@ def test_character_validation():
         )
 
 
-def test_character_save_and_load(character_storage, sample_character):
+@pytest.mark.asyncio
+async def test_character_save_and_load(character_storage, sample_character):
     """キャラクターの保存と読み込みをテスト."""
     # キャラクターを保存
-    character_storage.save(sample_character)
+    await character_storage.save(sample_character)
     
     # 読み込み
-    loaded_character = character_storage.load(sample_character.id)
+    loaded_character = await character_storage.load(sample_character.id)
     
     # 内容を検証
     assert loaded_character.id == sample_character.id
@@ -155,10 +158,11 @@ def test_character_save_and_load(character_storage, sample_character):
     assert loaded_character.metadata == sample_character.metadata
 
 
-def test_character_list(character_storage, sample_character):
+@pytest.mark.asyncio
+async def test_character_list(character_storage, sample_character):
     """キャラクター一覧取得のテスト."""
     # キャラクターを保存
-    character_storage.save(sample_character)
+    await character_storage.save(sample_character)
     
     # 別のキャラクターも保存
     second_character = Character(
@@ -168,21 +172,23 @@ def test_character_list(character_storage, sample_character):
         system_prompt="あなたは2つ目のテスト用キャラクターです。",
         persona=Persona(),
     )
-    character_storage.save(second_character)
+    await character_storage.save(second_character)
     
     # 一覧を取得
-    character_ids = character_storage.list_characters()
+    characters = await character_storage.load_all()
     
     # 2つのキャラクターが取得できることを検証
-    assert len(character_ids) == 2
+    assert len(characters) == 2
+    character_ids = [char.id for char in characters]
     assert "test_char" in character_ids
     assert "test_char2" in character_ids
 
 
-def test_character_service_operations(character_service, sample_character):
+@pytest.mark.asyncio
+async def test_character_service_operations(character_service, sample_character):
     """キャラクターサービスの操作をテスト."""
     # キャラクターを作成
-    created_character = character_service.create_character(
+    created_character = await character_service.create_character(
         name=sample_character.name,
         description=sample_character.description,
         system_prompt=sample_character.system_prompt,
@@ -202,7 +208,7 @@ def test_character_service_operations(character_service, sample_character):
         "description": "更新されたテスト用のキャラクター",
         "metadata": {"favorite_color": "赤"}
     }
-    updated_character = character_service.update_character(created_character.id, updates)
+    updated_character = await character_service.update_character(created_character.id, updates)
     assert updated_character.description == updates["description"]
     assert updated_character.metadata["favorite_color"] == updates["metadata"]["favorite_color"]
     
@@ -212,12 +218,13 @@ def test_character_service_operations(character_service, sample_character):
     assert characters[0].id == created_character.id
     
     # キャラクターを削除
-    character_service.delete_character(created_character.id)
+    await character_service.delete_character(created_character.id)
     with pytest.raises(CharacterError):
         character_service.get_character(created_character.id)
 
 
-def test_character_service_error_handling(character_service):
+@pytest.mark.asyncio
+async def test_character_service_error_handling(character_service):
     """キャラクターサービスのエラーハンドリングをテスト."""
     # 存在しないキャラクターの取得
     with pytest.raises(CharacterError):
@@ -225,27 +232,30 @@ def test_character_service_error_handling(character_service):
     
     # 無効なキャラクター情報での更新
     with pytest.raises(CharacterError):
-        character_service.update_character("non_existent_id", {"invalid_field": "value"})
+        await character_service.update_character("non_existent_id", {"invalid_field": "value"})
 
 
-def test_character_save_with_invalid_path(character_storage, sample_character):
+@pytest.mark.asyncio
+async def test_character_save_with_invalid_path(character_storage, sample_character):
     """無効なパスでのキャラクター保存テスト."""
     # 無効なパスを設定
     character_storage.base_dir = Path("/invalid/path")
 
     with pytest.raises(CharacterError) as exc_info:
-        character_storage.save(sample_character)
+        await character_storage.save(sample_character)
     assert "キャラクターの保存に失敗しました" in str(exc_info.value)
 
 
-def test_character_load_nonexistent(character_storage):
+@pytest.mark.asyncio
+async def test_character_load_nonexistent(character_storage):
     """存在しないキャラクターの読み込みテスト."""
     with pytest.raises(CharacterError) as exc_info:
-        character_storage.load("nonexistent_character")
+        await character_storage.load("nonexistent_character")
     assert "キャラクターファイルが見つかりません" in str(exc_info.value)
 
 
-def test_character_save_with_invalid_data(character_storage):
+@pytest.mark.asyncio
+async def test_character_save_with_invalid_data(character_storage):
     """無効なデータでのキャラクター保存テスト."""
     try:
         Character(
@@ -260,7 +270,8 @@ def test_character_save_with_invalid_data(character_storage):
         assert "String should have at least 1 character" in str(e)
 
 
-def test_character_list_with_empty_directory(temp_character_dir):
+@pytest.mark.asyncio
+async def test_character_list_with_empty_directory(temp_character_dir):
     """空のディレクトリでのキャラクター一覧取得テスト."""
     storage = FileSystemCharacterStorage(temp_character_dir)
     character_ids = storage.list_characters()
@@ -268,10 +279,11 @@ def test_character_list_with_empty_directory(temp_character_dir):
     assert len(character_ids) == 0
 
 
-def test_character_save_with_duplicate_id(character_storage, sample_character):
+@pytest.mark.asyncio
+async def test_character_save_with_duplicate_id(character_storage, sample_character):
     """重複IDでのキャラクター保存テスト."""
     # 1回目の保存
-    character_storage.save(sample_character)
+    await character_storage.save(sample_character)
     
     # 同じIDで別のキャラクターを保存
     duplicate_character = Character(
@@ -283,14 +295,15 @@ def test_character_save_with_duplicate_id(character_storage, sample_character):
     )
     
     # 上書き保存が成功することを確認
-    character_storage.save(duplicate_character)
+    await character_storage.save(duplicate_character)
     
     # 読み込んで内容を確認
-    loaded_character = character_storage.load(sample_character.id)
+    loaded_character = await character_storage.load(sample_character.id)
     assert loaded_character.name == "重複キャラクター"
 
 
-def test_character_save_with_special_characters(character_storage):
+@pytest.mark.asyncio
+async def test_character_save_with_special_characters(character_storage):
     """特殊文字を含むキャラクター保存テスト."""
     special_character = Character(
         id="special_test",
@@ -300,8 +313,8 @@ def test_character_save_with_special_characters(character_storage):
         persona=Persona(),
     )
     
-    character_storage.save(special_character)
-    loaded_character = character_storage.load("special_test")
+    await character_storage.save(special_character)
+    loaded_character = await character_storage.load("special_test")
     
     assert loaded_character.name == "特殊文字テスト!@#$%^&*()"
     assert loaded_character.description == "特殊文字を含む説明!@#$%^&*()" 

@@ -1,5 +1,6 @@
 """ChromaDBを使用したメモリサービスの実装"""
 
+import logging
 from typing import (
     List,
     Dict,
@@ -18,12 +19,14 @@ import uuid
 
 import chromadb
 from chromadb.config import Settings
-from chromadb.api.types import Where, Metadata
+from chromadb.api.types import Metadata
 
 from ....core.config import AITuberConfig
 from ....core.exceptions import MemoryError
 from .base import BaseMemoryService, Memory
 from ..llm.base import BaseLLMService
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -215,7 +218,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 return item[0] if item else None
             return item
         except (IndexError, TypeError, AttributeError) as e:
-            print(
+            logger.warning(
                 f"値の取得に失敗しました - キー: {key}, インデックス: {index}, サブインデックス: {subindex}, エラー: {e}"
             )
             return None
@@ -251,7 +254,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 embedding = embeddings[index]
             return cast(List[float], embedding) if isinstance(embedding, list) else None
         except (IndexError, TypeError, AttributeError) as e:
-            print(
+            logger.warning(
                 f"埋め込みベクトルの取得に失敗しました - インデックス: {index}, クエリ: {is_query}, エラー: {e}"
             )
             return None
@@ -272,7 +275,7 @@ class ChromaDBMemoryService(BaseMemoryService):
             return id_value
         if isinstance(id_value, list) and id_value and isinstance(id_value[0], str):
             return id_value[0]
-        print(f"IDの文字列変換に失敗しました - 値: {id_value}")
+        logger.warning(f"IDの文字列変換に失敗しました - 値: {id_value}")
         return None
 
     async def add_memory(
@@ -317,7 +320,7 @@ class ChromaDBMemoryService(BaseMemoryService):
             # ChromaDBに保存
             self.collection.add(
                 ids=[memory_id],
-                embeddings=[embedding],
+                embeddings=embedding,
                 metadatas=[base_metadata],
                 documents=[text],
             )
@@ -361,7 +364,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                 embedding=self._get_embedding(result, 0),
             )
         except Exception as e:
-            print(f"メモリの取得に失敗しました: {e}")
+            logger.warning(f"メモリの取得に失敗しました: {e}")
             return None
 
     async def get_memories(
@@ -371,7 +374,7 @@ class ChromaDBMemoryService(BaseMemoryService):
         offset: Optional[int] = None,
     ) -> List[Memory]:
         """メモリ一覧を取得する"""
-        where: Where = {"character_id": {"$eq": character_id}}
+        where = {"character_id": character_id}
         try:
             result = cast(
                 ChromaResult,
@@ -413,14 +416,14 @@ class ChromaDBMemoryService(BaseMemoryService):
                     )
                     memories.append(memory)
                 except ValueError as e:
-                    print(
+                    logger.warning(
                         f"メモリの変換に失敗しました - ID: {str_memory_id}, エラー: {e}"
                     )
                     continue
 
             return memories
         except Exception as e:
-            print(f"メモリ一覧の取得に失敗しました: {e}")
+            logger.warning(f"メモリ一覧の取得に失敗しました: {e}")
             return []
 
     async def retrieve_relevant_memories(
@@ -433,7 +436,7 @@ class ChromaDBMemoryService(BaseMemoryService):
             embedding = embeddings[0]
 
             # ChromaDBで類似度検索
-            where: Where = {"character_id": {"$eq": character_id}}
+            where = {"character_id": character_id}
             result = cast(
                 ChromaResult,
                 self.collection.query(
@@ -483,7 +486,7 @@ class ChromaDBMemoryService(BaseMemoryService):
                         )
                         memories.append(memory)
                     except ValueError as e:
-                        print(
+                        logger.warning(
                             f"メモリの変換に失敗しました - ID: {str_memory_id}, エラー: {e}"
                         )
                         continue
@@ -491,7 +494,7 @@ class ChromaDBMemoryService(BaseMemoryService):
             return memories
 
         except Exception as e:
-            print(f"関連メモリの検索に失敗しました: {e}")
+            logger.warning(f"関連メモリの検索に失敗しました: {e}")
             return []
 
     async def update_memory(
@@ -534,7 +537,7 @@ class ChromaDBMemoryService(BaseMemoryService):
             # ChromaDBのデータを更新
             self.collection.update(
                 ids=[memory_id],
-                embeddings=[embedding] if embedding else None,
+                embeddings=embedding if embedding else None,
                 metadatas=[chroma_metadata],
                 documents=[update_text],
             )
@@ -566,5 +569,5 @@ class ChromaDBMemoryService(BaseMemoryService):
             return True
 
         except Exception as e:
-            print(f"メモリの削除に失敗しました: {e}")
+            logger.warning(f"メモリの削除に失敗しました: {e}")
             return False

@@ -68,7 +68,13 @@ class ServiceContainer:
             self._character_service = CharacterService(
                 config=self.config, storage=self.character_storage
             )
+            # Note: _load_characters() is now async and should be called separately
         return self._character_service
+    
+    async def initialize_character_service(self) -> None:
+        """キャラクターサービスを非同期で初期化"""
+        service = self.character_service
+        await service._load_characters()
 
     @property
     def conversation_service(self) -> ConversationService:
