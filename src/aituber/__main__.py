@@ -1,6 +1,6 @@
 """Main entry point for the AITuber package."""
 
-from .cli.main import run
+from aituber.interface.cli.main import run
 
 if __name__ == "__main__":
     run()

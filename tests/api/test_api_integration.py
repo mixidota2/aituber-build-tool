@@ -83,7 +83,7 @@ def mock_tts_service():
 @pytest.fixture
 def client(test_character_dir, mock_app_services, mock_tts_service):
     """テスト用クライアント"""
-    with patch("aituber.api.constants.CHARACTER_DIR", test_character_dir), \
+    with patch("aituber.core.character_utils.CharacterUtils.get_character_dir", return_value=test_character_dir), \
          patch("aituber.api.api.get_app", return_value=mock_app_services), \
          patch("aituber.api.api.tts_service", mock_tts_service):
         

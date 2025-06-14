@@ -153,7 +153,7 @@ def chat(
         "config.yaml", "--config", help="設定ファイルのパス"
     ),
     stream: bool = typer.Option(False, "--stream", "-s", help="ストリーミングモード"),
-):
+) -> None:
     """キャラクターとチャットを開始します"""
 
     async def _chat():
@@ -222,7 +222,7 @@ def list_characters(
     config_path: str = typer.Option(
         "config.yaml", "--config", help="設定ファイルのパス"
     ),
-):
+) -> None:
     """利用可能なキャラクター一覧を表示します"""
 
     async def _list_characters():
@@ -261,7 +261,7 @@ def serve(
     config_path: str = typer.Option(
         "config.yaml", "--config", help="設定ファイルのパス"
     ),
-):
+) -> None:
     """APIサーバーを起動します"""
     typer.echo("AITuber APIサーバーを起動中...")
     typer.echo(f"ホスト: {host}")

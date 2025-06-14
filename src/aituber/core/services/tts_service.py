@@ -15,9 +15,9 @@ class TTSSyncService:
     ):
         # ONNX Runtimeのパス
         onnxruntime_path = (
-            "voicevox_core/onnxruntime/lib/" + Onnxruntime.LIB_VERSIONED_FILENAME
+            "voicevox_core/onnxruntime/lib/" + Onnxruntime.LIB_VERSIONED_FILENAME  # type: ignore
         )
-        self.onnx = Onnxruntime.load_once(filename=onnxruntime_path)
+        self.onnx = Onnxruntime.load_once(filename=onnxruntime_path)  # type: ignore
         self.open_jtalk = OpenJtalk("voicevox_core/dict/open_jtalk_dic_utf_8-1.11")
         self.synthesizer = Synthesizer(
             self.onnx, self.open_jtalk, acceleration_mode="GPU" if use_gpu else "CPU"
@@ -25,7 +25,7 @@ class TTSSyncService:
         # モデルをすべてロード
         for file in os.listdir(model_dir):
             if file.endswith(".vvm"):
-                with VoiceModelFile.open(os.path.join(model_dir, file)) as model:
+                with VoiceModelFile.open(os.path.join(model_dir, file)) as model:  # type: ignore
                     self.synthesizer.load_voice_model(model)
 
     def synthesize(self, text: str, character: Character) -> bytes:

@@ -12,6 +12,9 @@ from typing import (
     TypeVar,
     Protocol,
     runtime_checkable,
+    Mapping,
+    Sequence,
+    TypeGuard,
 )
 from typing_extensions import TypeGuard
 from datetime import datetime
@@ -374,7 +377,7 @@ class ChromaDBMemoryService(BaseMemoryService):
         offset: Optional[int] = None,
     ) -> List[Memory]:
         """メモリ一覧を取得する"""
-        where = {"character_id": character_id}
+        where = cast(Any, {"character_id": character_id})
         try:
             result = cast(
                 ChromaResult,
@@ -436,11 +439,11 @@ class ChromaDBMemoryService(BaseMemoryService):
             embedding = embeddings[0]
 
             # ChromaDBで類似度検索
-            where = {"character_id": character_id}
+            where = cast(Any, {"character_id": character_id})
             result = cast(
                 ChromaResult,
                 self.collection.query(
-                    query_embeddings=[embedding],
+                    query_embeddings=cast(Any, [embedding]),
                     where=where,
                     n_results=limit,
                     include=["metadatas", "documents", "embeddings", "distances"],
@@ -530,7 +533,7 @@ class ChromaDBMemoryService(BaseMemoryService):
             update_text = text if text is not None else existing.text
             if text is not None:
                 embeddings = await self.llm_service.get_embeddings([update_text])
-                embedding = embeddings[0]
+                embedding: Optional[List[float]] = embeddings[0]
             else:
                 embedding = existing.embedding
 
