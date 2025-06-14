@@ -47,9 +47,9 @@ class ServiceContainer:
     def character_storage(self) -> FileSystemCharacterStorage:
         """キャラクターストレージのシングルトンインスタンスを取得"""
         if self._character_storage is None:
-            self._character_storage = FileSystemCharacterStorage(
-                str(self.config.character.characters_dir)
-            )
+            # data_dirとcharacters_dirを結合して絶対パスを作成
+            character_path = self.config.app.data_dir / self.config.character.characters_dir.name
+            self._character_storage = FileSystemCharacterStorage(str(character_path))
         return self._character_storage
 
     @property

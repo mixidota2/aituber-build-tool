@@ -103,6 +103,7 @@ dependencies = [
     { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "typer" },
+    { name = "uvicorn", extra = ["standard"] },
     { name = "voicevox-core" },
 ]
 
@@ -130,6 +131,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "typer", specifier = ">=0.15.2" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.2" },
     { name = "voicevox-core", path = "voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl" },
 ]
 

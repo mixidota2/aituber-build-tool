@@ -8,7 +8,6 @@ import json
 from contextlib import asynccontextmanager
 from aituber.core.models.character import Character
 from aituber.core.services.tts_service import TTSSyncService
-from aituber.api.constants import CHARACTER_DIR
 from aituber.app import get_app
 
 # FastAPIのlifespanでアプリケーション初期化
@@ -192,29 +191,60 @@ async def voice_chat(
 
 @app.get("/characters", response_model=CharacterListResponse)
 async def list_characters():
-    characters = []
-    if os.path.exists(CHARACTER_DIR):
-        for filename in os.listdir(CHARACTER_DIR):
-            if filename.endswith(".yaml"):
-                char_id = filename[:-5]  # .yamlを除く
-                char_path = os.path.join(CHARACTER_DIR, filename)
-                try:
-                    with open(char_path, "r", encoding="utf-8") as f:
-                        char_data = yaml.safe_load(f)
-                    characters.append({
-                        "id": char_id,
-                        "name": char_data.get("name", char_id),
-                        "description": char_data.get("persona", "")[:100] + "..."
-                    })
-                except Exception:
-                    continue
-    return CharacterListResponse(characters=characters)
+    global tuber_app
+    if tuber_app is None:
+        tuber_app = await get_app()
+    
+    try:
+        character_service = tuber_app.character_service
+        characters_list = character_service.list_characters()
+        
+        characters = []
+        for character in characters_list:
+            characters.append({
+                "id": character.id,
+                "name": character.name,
+                "description": character.description[:100] + "..." if len(character.description) > 100 else character.description
+            })
+        return CharacterListResponse(characters=characters)
+    except Exception:
+        # フォールバック: 直接ファイルシステムから読み込み
+        characters = []
+        character_dir = get_character_dir()
+        if os.path.exists(character_dir):
+            for filename in os.listdir(character_dir):
+                if filename.endswith(".yaml"):
+                    char_id = filename[:-5]  # .yamlを除く
+                    char_path = os.path.join(character_dir, filename)
+                    try:
+                        with open(char_path, "r", encoding="utf-8") as f:
+                            char_data = yaml.safe_load(f)
+                        characters.append({
+                            "id": char_id,
+                            "name": char_data.get("name", char_id),
+                            "description": char_data.get("description", "")[:100] + "..."
+                        })
+                    except Exception:
+                        continue
+        return CharacterListResponse(characters=characters)
 
 
 @app.get("/conversations/{conversation_id}/history", response_model=ConversationHistoryResponse)
 async def get_conversation_history(conversation_id: str):
     history = conversations.get(conversation_id, [])
     return ConversationHistoryResponse(conversation_id=conversation_id, history=history)
+
+
+@app.get("/debug/character-dir")
+async def debug_character_dir():
+    """デバッグ用: キャラクターディレクトリ情報を取得"""
+    character_dir = get_character_dir()
+    return {
+        "character_dir": character_dir,
+        "exists": os.path.exists(character_dir),
+        "files": os.listdir(character_dir) if os.path.exists(character_dir) else [],
+        "cwd": os.getcwd()
+    }
 
 
 @app.post("/chat/text-to-speech")
@@ -247,13 +277,41 @@ async def text_to_speech_chat(req: TextToSpeechRequest):
         raise HTTPException(status_code=500, detail=f"テキスト→音声変換エラー: {e}")
 
 
+def get_character_dir() -> str:
+    """キャラクターディレクトリのパスを取得"""
+    try:
+        # 設定ファイルからパスを取得
+        global tuber_app
+        if tuber_app and hasattr(tuber_app, 'config'):
+            base_dir = tuber_app.config.app.data_dir
+            char_dir = tuber_app.config.character.characters_dir
+            return os.path.join(base_dir, char_dir)
+    except Exception:
+        pass
+    
+    # フォールバック: 現在のディレクトリからの相対パス
+    return os.path.join(os.getcwd(), "data", "characters")
+
+
 async def get_character(character_id: str) -> Character:
-    char_path = os.path.join(CHARACTER_DIR, f"{character_id}.yaml")
-    if not os.path.exists(char_path):
-        raise HTTPException(status_code=404, detail="キャラクターが見つかりません")
-    with open(char_path, "r", encoding="utf-8") as f:
-        char_data = yaml.safe_load(f)
-    return Character(**char_data)
+    global tuber_app
+    if tuber_app is None:
+        tuber_app = await get_app()
+    
+    try:
+        # CharacterServiceを使用してキャラクターを取得
+        character_service = tuber_app.character_service
+        character = await character_service.load_character(character_id)
+        return character
+    except Exception:
+        # フォールバック: 直接ファイルから読み込み
+        character_dir = get_character_dir()
+        char_path = os.path.join(character_dir, f"{character_id}.yaml")
+        if not os.path.exists(char_path):
+            raise HTTPException(status_code=404, detail="キャラクターが見つかりません")
+        with open(char_path, "r", encoding="utf-8") as f:
+            char_data = yaml.safe_load(f)
+        return Character(**char_data)
 
 
 async def stream_text_response(conversation_service, conversation_id: str, message: str) -> AsyncGenerator[str, None]:

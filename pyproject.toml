@@ -18,10 +18,11 @@ dependencies = [
     "fastapi>=0.115.9",
     "aiofiles>=24.1.0",
     "python-multipart>=0.0.20",
+    "uvicorn[standard]>=0.34.2",
 ]
 
 [project.scripts]
-aituber = "aituber.cli.main:run"
+aituber = "aituber.interface.cli.main:run"
 
 [build-system]
 requires = ["hatchling"]

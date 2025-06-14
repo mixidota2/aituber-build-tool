@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 from typing import Optional
 import yaml
+import uvicorn
 
 from aituber.core.config import ConfigManager
 from aituber.app import get_app
@@ -250,6 +251,36 @@ def list_characters(
 
     # 非同期処理の実行
     asyncio.run(_list_characters())
+
+
+@app.command("serve")
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="ホストアドレス"),
+    port: int = typer.Option(8000, "--port", "-p", help="ポート番号"),
+    reload: bool = typer.Option(False, "--reload", "-r", help="ファイル変更時の自動リロード"),
+    config_path: str = typer.Option(
+        "config.yaml", "--config", help="設定ファイルのパス"
+    ),
+):
+    """APIサーバーを起動します"""
+    typer.echo("AITuber APIサーバーを起動中...")
+    typer.echo(f"ホスト: {host}")
+    typer.echo(f"ポート: {port}")
+    typer.echo(f"設定ファイル: {config_path}")
+    typer.echo(f"APIドキュメント: http://{host}:{port}/docs")
+    typer.echo("-----")
+    
+    # 設定ファイルの環境変数を設定（FastAPIアプリで使用）
+    os.environ["AITUBER_CONFIG_PATH"] = config_path
+    
+    # FastAPIアプリを起動
+    uvicorn.run(
+        "aituber.api.api:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info"
+    )
 
 
 def run():

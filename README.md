@@ -101,6 +101,127 @@ aituber chat --character railly
 aituber chat --character railly --stream
 ```
 
+### APIサーバーの起動
+
+FastAPIを使ったWebAPIサーバーを起動できます。テキスト対話と音声対話の両方に対応しています。
+
+```bash
+# デフォルト設定でサーバー起動（ホスト: 127.0.0.1, ポート: 8000）
+uv run aituber serve
+
+# ホストとポートを指定
+uv run aituber serve --host 127.0.0.1 --port 8000
+
+# 開発モード（ファイル変更時の自動リロード）
+uv run aituber serve --reload
+```
+
+サーバー起動後、以下のURLにアクセスできます：
+
+- **APIドキュメント**: http://127.0.0.1:8000/docs
+- **ReDoc**: http://127.0.0.1:8000/redoc
+
+### API使用例
+
+#### テキスト対話
+
+```bash
+curl -X POST http://127.0.0.1:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "character_id": "railly",
+    "user_id": "test_user", 
+    "message": "こんにちは！",
+    "response_type": "text"
+  }'
+```
+
+#### テキスト入力→音声出力
+
+```bash
+# 専用エンドポイント
+curl -X POST http://127.0.0.1:8000/chat/text-to-speech \
+  -H "Content-Type: application/json" \
+  -d '{
+    "character_id": "railly",
+    "user_id": "test_user",
+    "message": "音声で返事して！"
+  }' \
+  --output response.wav
+
+# 通常のチャットAPIでも可能
+curl -X POST http://127.0.0.1:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "character_id": "railly",
+    "user_id": "test_user",
+    "message": "音声で返事してください",
+    "response_type": "audio"
+  }' \
+  --output chat_audio.wav
+```
+
+#### その他のAPI
+
+```bash
+# キャラクター一覧
+curl http://127.0.0.1:8000/characters
+
+# ストリーミング対話
+curl -X POST http://127.0.0.1:8000/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "character_id": "railly",
+    "user_id": "test_user",
+    "message": "ストリーミングで返答して"
+  }'
+
+# 会話履歴
+curl http://127.0.0.1:8000/conversations/{conversation_id}/history
+```
+
+### APIテストスクリプト
+
+APIの動作確認には、付属のテストスクリプトを使用できます：
+
+```bash
+# サーバーを起動
+uv run aituber serve
+
+# 別のターミナルでテストスクリプト実行
+uv run python examples/api_test.py
+
+# または簡単なテスト
+uv run python simple_test.py
+```
+
+このスクリプトは以下の機能をテストします：
+- キャラクター一覧取得
+- テキスト対話
+- テキスト→音声変換
+- 音声応答
+- ストリーミング対話
+- 会話履歴取得
+
+### トラブルシューティング
+
+**キャラクターが見つからない場合:**
+
+1. 初期化が完了していることを確認:
+   ```bash
+   uv run aituber init
+   ```
+
+2. キャラクターファイルの存在確認:
+   ```bash
+   ls -la data/characters/
+   ```
+
+3. デバッグエンドポイントで詳細確認:
+   ```bash
+   curl http://127.0.0.1:8000/debug/character-dir
+   ```
+
 ## 開発者向け検証手順
 
 uvを使ってインストールしていない場合は、以下のコマンドで直接実行することもできます：

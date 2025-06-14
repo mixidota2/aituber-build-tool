@@ -58,6 +58,9 @@ class AITuberApp:
             _ = self.memory_service
             _ = self.conversation_service
 
+            # キャラクターサービスの非同期初期化（キャラクターファイルをメモリにロード）
+            await self._container.initialize_character_service()
+
         except Exception as e:
             raise e
 
