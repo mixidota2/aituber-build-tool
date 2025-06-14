@@ -17,6 +17,7 @@ dependencies = [
     "voicevox-core",
     "fastapi>=0.115.9",
     "aiofiles>=24.1.0",
+    "python-multipart>=0.0.20",
 ]
 
 [project.scripts]

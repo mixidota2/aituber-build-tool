@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from fastapi import FastAPI, Response, HTTPException
-from aituber.api.api import ChatRequest, ChatResponse
+from aituber.api.api import ChatRequest, ChatResponse, TextToSpeechRequest
 from pathlib import Path
 from aituber.core.services.memory.base import BaseMemoryService
 import os
@@ -101,6 +101,31 @@ voicevox:
     @test_app.post("/chat/invalid")
     async def invalid_endpoint(req: ChatRequest):
         raise HTTPException(status_code=422, detail="Validation Error")
+    
+    @test_app.post("/chat/text-to-speech")
+    async def mock_text_to_speech_endpoint(req: TextToSpeechRequest):
+        # キャラクターYAMLロード
+        char_path = os.path.join(CHARACTER_DIR, f"{req.character_id}.yaml")
+        if not os.path.exists(char_path):
+            raise HTTPException(status_code=404, detail="キャラクターが見つかりません")
+            
+        with open(char_path, "r", encoding="utf-8") as f:
+            char_data = yaml.safe_load(f)
+        character = Character(**char_data)
+        
+        # 会話IDの生成
+        conversation_id = req.conversation_id or str(uuid.uuid4())
+        
+        # 返答生成（ダミー）
+        reply = f"テキスト→音声変換のテスト応答です。by {character.name}"
+        
+        # TTSサービスを使用
+        wav = aituber.api.api.tts_service.synthesize(reply, character)
+        headers = {
+            "X-Conversation-Id": conversation_id,
+            "X-Response-Length": str(len(reply))
+        }
+        return Response(content=wav, media_type="audio/wav", headers=headers)
     
     # TestClientを上書き
     global client
@@ -206,4 +231,59 @@ def test_invalid_response_type():
             "response_type": "invalid",
         },
     )
-    assert res.status_code == 422 
+    assert res.status_code == 422
+
+
+def test_text_to_speech_chat():
+    """テキスト入力でAIが音声で返答するテスト"""
+    res = client.post(
+        "/chat/text-to-speech",
+        json={
+            "character_id": CHARACTER_ID,
+            "user_id": USER_ID,
+            "conversation_id": None,
+            "message": "こんにちは、音声で返事してください",
+        },
+    )
+    print("test_text_to_speech_chat:", res.status_code, res.headers)
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("audio/wav")
+    assert res.headers.get("x-conversation-id")
+    assert res.headers.get("x-response-length")
+    assert isinstance(res.content, bytes)
+    assert len(res.content) > 100  # wavバイナリの簡易判定
+
+
+def test_text_to_speech_chat_with_conversation_id():
+    """会話IDを指定したテキスト→音声変換テスト"""
+    conversation_id = str(uuid.uuid4())
+    res = client.post(
+        "/chat/text-to-speech",
+        json={
+            "character_id": CHARACTER_ID,
+            "user_id": USER_ID,
+            "conversation_id": conversation_id,
+            "message": "継続的な会話で音声返答をテスト",
+        },
+    )
+    print("test_text_to_speech_chat_with_conversation_id:", res.status_code, res.headers)
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("audio/wav")
+    assert res.headers.get("x-conversation-id") == conversation_id
+    assert res.headers.get("x-response-length")
+    assert isinstance(res.content, bytes)
+    assert len(res.content) > 100
+
+
+def test_text_to_speech_chat_not_found_character():
+    """存在しないキャラクターでのテキスト→音声変換エラーテスト"""
+    res = client.post(
+        "/chat/text-to-speech",
+        json={
+            "character_id": "notfound",
+            "user_id": USER_ID,
+            "conversation_id": None,
+            "message": "存在しないキャラクターテスト",
+        },
+    )
+    assert res.status_code == 404 
