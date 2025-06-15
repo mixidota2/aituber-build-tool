@@ -22,8 +22,7 @@ async def lifespan(app):
 
 app = FastAPI(lifespan=lifespan)
 
-# メモリ上の会話履歴: {conversation_id: List[Dict{"role": str, "content": str}]}
-conversations: Dict[str, List[Dict[str, str]]] = {}
+# 注意: 会話履歴は ConversationService で管理されます
 
 
 class ChatRequest(BaseModel):
@@ -206,7 +205,22 @@ async def list_characters():
 
 @app.get("/conversations/{conversation_id}/history", response_model=ConversationHistoryResponse)
 async def get_conversation_history(conversation_id: str):
-    history = conversations.get(conversation_id, [])
+    global tuber_app
+    if tuber_app is None:
+        tuber_app = await AppFactory.get_app()
+    
+    conversation_service = tuber_app.conversation_service
+    context = conversation_service.get_conversation(conversation_id)
+    
+    if context is None:
+        raise HTTPException(status_code=404, detail="会話が見つかりません")
+    
+    # ConversationContext.messages を API レスポンス形式に変換
+    history = [
+        {"role": msg.role, "content": msg.content}
+        for msg in context.messages
+    ]
+    
     return ConversationHistoryResponse(conversation_id=conversation_id, history=history)
 
 

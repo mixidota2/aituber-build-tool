@@ -58,7 +58,20 @@ def mock_app_services():
     # 会話サービスのモック
     mock_conversation = Mock()
     mock_conversation.conversation_id = "test-conversation-123"
+    
+    # メッセージリストのモック
+    mock_message1 = Mock()
+    mock_message1.role = "user"
+    mock_message1.content = "テストメッセージ"
+    
+    mock_message2 = Mock()
+    mock_message2.role = "assistant" 
+    mock_message2.content = "テスト応答"
+    
+    mock_conversation.messages = [mock_message1, mock_message2]
+    
     mock_conversation_service.get_or_create_conversation = Mock(return_value=mock_conversation)
+    mock_conversation_service.get_conversation = Mock(return_value=mock_conversation)
     mock_conversation_service.process_message = AsyncMock(return_value="これはテスト用のダミー応答です。by らいりぃ")
     
     # ストリーミングのモック
