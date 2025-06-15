@@ -180,28 +180,32 @@ curl -X POST http://127.0.0.1:8000/chat/stream \
 curl http://127.0.0.1:8000/conversations/{conversation_id}/history
 ```
 
-### APIテストスクリプト
+### 会話の継続
 
-APIの動作確認には、付属のテストスクリプトを使用できます：
+APIでは`conversation_id`を使用して会話の継続が可能です：
 
 ```bash
-# サーバーを起動
-uv run aituber serve
+# 初回メッセージ（新しい会話IDが生成される）
+curl -X POST http://127.0.0.1:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "character_id": "railly",
+    "user_id": "test_user",
+    "message": "初回メッセージです",
+    "response_type": "text"
+  }'
 
-# 別のターミナルでテストスクリプト実行
-uv run python examples/api_test.py
-
-# または簡単なテスト
-uv run python simple_test.py
+# 返答から conversation_id を取得し、続きの会話
+curl -X POST http://127.0.0.1:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "character_id": "railly",
+    "user_id": "test_user",
+    "conversation_id": "取得したconversation_id",
+    "message": "続きのメッセージです",
+    "response_type": "text"
+  }'
 ```
-
-このスクリプトは以下の機能をテストします：
-- キャラクター一覧取得
-- テキスト対話
-- テキスト→音声変換
-- 音声応答
-- ストリーミング対話
-- 会話履歴取得
 
 ### トラブルシューティング
 
@@ -222,7 +226,9 @@ uv run python simple_test.py
    curl http://127.0.0.1:8000/debug/character-dir
    ```
 
-## 開発者向け検証手順
+## 開発者向け情報
+
+### 基本的な検証手順
 
 uvを使ってインストールしていない場合は、以下のコマンドで直接実行することもできます：
 
@@ -249,6 +255,75 @@ uv run python -m aituber chat --character railly
    ```bash
    aituber chat --character railly
    ```
+
+### テスト
+
+このプロジェクトには包括的なテストスイートが含まれています：
+
+#### テスト構造
+
+```
+tests/
+├── unit/          # 単体テスト（モックを使用）
+│   ├── api/       # API エンドポイントのテスト
+│   ├── test_character.py
+│   ├── test_conversation_manager.py
+│   └── test_services.py
+└── integration/   # 統合テスト（実際のAPIサーバーを使用）
+    └── test_api_integration.py
+```
+
+#### テスト実行
+
+```bash
+# 全テスト実行
+uv run pytest tests/
+
+# 単体テストのみ
+uv run pytest tests/unit/
+
+# 統合テストのみ（実際のAPIサーバーを起動してテスト）
+uv run pytest tests/integration/
+
+# 詳細出力
+uv run pytest tests/ -v
+
+# 特定のテストファイル
+uv run pytest tests/unit/test_services.py
+
+# 特定のテスト関数
+uv run pytest tests/unit/test_services.py::test_llm_generate
+```
+
+#### 統合テストについて
+
+統合テストは実際のAPIサーバーを自動起動・停止してテストを実行します：
+
+- **自動サーバー管理**: テスト実行時に自動でAPIサーバーが起動・停止されます
+- **一時的な設定**: テスト用の一時設定ファイルとデータディレクトリを使用
+- **OpenAI API**: `OPENAI_API_KEY`環境変数が設定されていない場合、LLMが必要なテストは自動的にスキップされます
+
+```bash
+# OpenAI APIキーを設定して全機能をテスト
+export OPENAI_API_KEY=your_api_key_here
+uv run pytest tests/integration/
+```
+
+#### コード品質チェック
+
+開発時は以下のコマンドでコード品質をチェックしてください：
+
+```bash
+# コードの整形とリンティング
+uv run ruff check src/
+uv run ruff check --fix src/
+
+# 型チェック
+uv run mypy src/aituber/
+
+# 全チェック（テスト + リント + 型チェック）
+uv run pytest tests/ && uv run ruff check src/ && uv run mypy src/aituber/
+```
 
 ## アーキテクチャ
 
