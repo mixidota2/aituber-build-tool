@@ -18,6 +18,14 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+      - name: Setup VOICEVOX Core for CI
+        run: |
+          # VOICEVOX Core wheelをダウンロード
+          curl -L -o voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl \
+            https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.0/voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl
+          
+          # pyproject.tomlのパスを現在のディレクトリ基準に書き換え
+          sed -i 's|voicevox-core = { path = "voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl" }|voicevox-core = { path = "./voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl" }|' pyproject.toml
       - name: Install dependencies
         run: uv sync --group=dev
       - name: Run lint
@@ -32,6 +40,14 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+      - name: Setup VOICEVOX Core for CI
+        run: |
+          # VOICEVOX Core wheelをダウンロード
+          curl -L -o voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl \
+            https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.0/voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl
+          
+          # pyproject.tomlのパスを現在のディレクトリ基準に書き換え
+          sed -i 's|voicevox-core = { path = "voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl" }|voicevox-core = { path = "./voicevox_core-0.16.0-cp310-abi3-manylinux_2_34_x86_64.whl" }|' pyproject.toml
       - name: Install dependencies
         run: uv sync --group=dev
       - name: Run tests
