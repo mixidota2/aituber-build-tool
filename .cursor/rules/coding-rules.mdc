@@ -5,12 +5,12 @@ alwaysApply: false
 ---
 コーディングを行うときの設計、実装のルールを示す。
 
-# 基本思想
+# 原則
 * 小さくはじめて段階的に拡張する
 * 過度な抽象化を避ける
-* Single Responsibility Principleを意識する
-* Open Closed Principalを意識する
-* 脳に収まるように、ひとつの関数・メソッド・ファイル・ディレクトリでやっていることを7つ以下に抑える
+* DRY原則を守る
+* Open/Closed Principleを守る
+* 単一責任原則を守る
 
 # Python
 ## 基本

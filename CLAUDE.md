@@ -138,6 +138,46 @@ Tests are organized by service layer in `tests/`:
 
 ## Development Guidelines
 
+### Design Process
+
+Follow this structured approach for all development:
+
+1. **Purpose Clarification**: Clearly define the objective; ask user for clarification if needed
+2. **Requirements Gathering**: Identify requirements to meet the objective; ask user for missing information
+3. **Design Phase**: Create a design that satisfies the requirements
+4. **Design Approval**: Seek user approval before proceeding
+5. **Implementation Planning**: Propose implementation approach in chat
+6. **Implementation Approval**: Get user approval before coding
+7. **Implementation**: Write actual code with comprehensive testing
+8. **Validation**: Ensure tests, linting, and type checking all pass
+
+Reference `@.cursor/context/base.md` for implementation plans and objectives as needed.
+
+### Coding Principles
+
+Follow these core principles:
+- **Start Small**: Begin with minimal implementation and expand incrementally
+- **Avoid Over-abstraction**: Don't create unnecessary abstractions
+- **DRY Principle**: Don't repeat yourself
+- **Open/Closed Principle**: Open for extension, closed for modification
+- **Single Responsibility**: Each component should have one clear responsibility
+
+### Python Development Standards
+
+**Type Safety & Code Quality:**
+- Always include Type Hints for all functions and variables
+- Use Pydantic for data models and validation
+- Use Typer for CLI implementation
+- Use FastAPI for API implementation
+- Follow Ruff's default formatting and import organization rules
+
+**Package Management:**
+- Use `uv` for all package management and execution
+- Add packages: `uv add {package_name}`
+- Group dependencies: `uv add {package_name} --group {group}`
+- Execute scripts: `uv run script.py`
+- Run modules: `uv run pytest tests/`
+
 ### Adding New Services
 
 1. Create interface in appropriate service directory
